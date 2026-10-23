@@ -1,0 +1,8 @@
+[submodule "back"]
+	path = back
+	url = https://github.com/eli899/riesgoti-back.git
+	branch = main
+[submodule "front"]
+	path = front
+	url = https://github.com/eli899/riesgoti-front.git
+	branch = main

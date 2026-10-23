@@ -1,0 +1,25 @@
+# Superproyecto RiesgoTI: back/ y front/ son submódulos con su propio .gitignore.
+
+# Archivos de sistema operativo y Google Drive
+desktop.ini
+Thumbs.db
+.DS_Store
+
+# Variables de entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Dependencias y artefactos locales
+node_modules/
+__pycache__/
+*.log
+
+# Documentación interna de trabajo (no se versiona)
+changelogs/
+
+# Configuración local de agentes y editores
+.claude/settings.local.json
+.vscode/*
+!.vscode/extensions.json
+.idea/

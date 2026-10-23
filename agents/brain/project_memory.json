@@ -1,0 +1,2753 @@
+{
+  "project": "RiesgoTI",
+  "version": "1.0.0",
+  "last_updated": "2026-10-23T08:00:00-05:00",
+  "standards_alignment": [
+    "ISO/IEC 27005:2022 (Gestión de Riesgos de Seguridad de la Información)",
+    "ISO/IEC 27001:2022 (Sistema de Gestión de Seguridad de la Información - SGSI y SoD)",
+    "ISO/IEC 27002:2022 (Controles de Seguridad de la Información)"
+  ],
+  "domain_invariants": [
+    {
+      "id": "INV-01",
+      "name": "Independencia de Procesos",
+      "rule": "El registro de INCIDENCIA es transaccional (transaction.atomic()) y previo a cualquier invocación de IA (transaction.on_commit()). Si el proveedor de IA falla o ningún fragmento supera umbral_similitud (SIN_RESPALDO), la incidencia se deriva automáticamente a PENDIENTE_ATENCION_HUMANA."
+    },
+    {
+      "id": "INV-02",
+      "name": "Separación Operación vs. Riesgo",
+      "rule": "Marcar que la orientación operativa FUNCIONO cambia el estado de la incidencia a CERRADA, pero jamás elimina, detiene ni anula el análisis estratégico (run_strategic_risk_task) ni su recurrencia."
+    },
+    {
+      "id": "INV-03",
+      "name": "No Auto-Entrenamiento Ciego",
+      "rule": "Las notas de resolución humana en ATENCION_INCIDENCIA quedan como historial y evidencia de recurrencia, pero jamás se inyectan automáticamente al índice vectorial FAISS sin pasar por la creación y autorización formal de una VERSION_DOCUMENTO por el Administrador."
+    },
+    {
+      "id": "INV-04",
+      "name": "Inmutabilidad Histórica de Citas y Matrices",
+      "rule": "Desactivar una VERSION_DOCUMENTO (activa = FALSE) impide su uso en nuevas consultas RAG, pero preserva intactas las filas en CITA_ORIENTACION y CITA_VERSION_RIESGO. Publicar una nueva CONFIGURACION_MATRIZ no altera retroactivamente los celda_id en EVALUACION_RIESGO."
+    },
+    {
+      "id": "INV-05",
+      "name": "Segregación de Funciones (SoD - RBAC)",
+      "rule": "El rol ADMIN gestiona usuarios, catálogo de activos, matriz de riesgo, API keys y autorización documental, pero tiene prohibido evaluar o decidir sobre riesgos (HTTP 403 Forbidden). Solo ANALISTA evalúa y valida versiones de riesgo."
+    }
+  ],
+  "tech_stack": {
+    "database": {
+      "engine": "PostgreSQL",
+      "source_of_truth_ddl": "docs/bd.sql",
+      "vector_store": "FAISS (faiss-cpu) con IndexIDMap2(IndexFlatIP(dim)) y normalización L2 mapeado a FRAGMENTO_DOCUMENTO.id",
+      "broker_cache": "Redis (broker y result backend para Celery)"
+    },
+    "backend": {
+      "root_dir": "back/",
+      "framework": "Django >= 5.1 + Django REST Framework (DRF)",
+      "auth_rbac": "djangorestframework-simplejwt (claims: usuario_id, nombre_completo, rol_codigo, permisos) + BasePermission granular",
+      "async_workers": "celery[redis], django-celery-results (ramas OPERATIVA, ESTRATEGICA e ingesta PDF)",
+      "cryptography": "cryptography (AESGCM - AES-256-GCM con RIESGOTI_MASTER_KEY de 32 bytes)",
+      "pdf_rag_pipeline": "PyMuPDF (fitz), pymupdf4llm (page_chunks=True), langchain-text-splitters (MarkdownHeaderTextSplitter + RecursiveCharacterTextSplitter), pydantic (Structured Outputs)",
+      "ai_providers": [
+        "google-genai",
+        "openai",
+        "sentence-transformers"
+      ],
+      "openapi_docs": "drf-spectacular, django-filter, django-cors-headers"
+    },
+    "frontend": {
+      "root_dir": "front/",
+      "framework": "React 18 + TypeScript + Vite",
+      "state_and_data_fetching": "@reduxjs/toolkit + react-redux + RTK Query (baseApi, adminApi, incidentsApi, risksApi)",
+      "validation_and_forms": "zod + react-hook-form + @hookform/resolvers",
+      "styling_and_ui": "tailwindcss + lucide-react + clsx + tailwind-merge + sonner + react-dropzone",
+      "markdown_and_citations": "react-markdown + remark-gfm + rehype-sanitize + CitationDrawer interactivo",
+      "design_prototype_status": "RETIRADO (CHG-0009): el prototipo figma/ se eliminó tras migrar íntegramente su diseño a front/src/, que es la única base visual."
+    }
+  },
+  "repository_layout": {
+    "updated_by": "CHG-0009",
+    "entries": {
+      "back/": "API Django + DRF + Celery (apps/, config/, storage/, docker/pgadmin/)",
+      "back/roadmap/": "Roadmaps backend v0.0..v0.6 (MOD-00-BACKEND-SETUP..MOD-06)",
+      "front/": "Aplicación React + TS + RTK Query (src/app/api, mappers, hooks, pages, components, schemas)",
+      "front/roadmap/": "Roadmaps frontend v0.0..v0.6 (MOD-00-FRONTEND-SETUP..MOD-10B)",
+      "docs/bd.sql": "DDL maestro (31 tablas); fuente única de verdad del esquema",
+      "docs/hoja_de_ruta_implementacion_backend.md": "Hoja de ruta maestra backend",
+      "docs/hoja_de_ruta_implementacion_frontend.md": "Hoja de ruta maestra frontend",
+      "docs/manuales/": "Manuales de usuario en Markdown por rol (índice README.md); capturas enlazadas y diagramas de estados en Mermaid",
+      "docs/manuales/capturas/": "34 capturas PNG (prefijos rep-, ana-, adm-; login.png y mi-cuenta.png compartidas)",
+      "changelogs/": "INDEX.md, TEMPLATE.md y entries/CHG-XXXX_*.md",
+      "agents/": "Brain (brain/project_memory.json), reglas (rules/) y skills_index.md",
+      ".claude/ y .agents/": "Skills y sub-agentes simétricos para Claude Code y Google Antigravity",
+      "docker-compose.yml": "Servicios db, redis, pgadmin, backend y celery_worker",
+      "README.md, CLAUDE.md, AGENTS.md": "Guía de arranque y reglas maestras (CLAUDE.md == AGENTS.md)"
+    },
+    "retired_paths": {
+      "bd.sql (raíz)": "docs/bd.sql",
+      "backend/roadmap/": "back/roadmap/",
+      "frontend/roadmap/": "front/roadmap/",
+      "docs/hoja_de_ruta_de_implementaci_n_backend.md": "docs/hoja_de_ruta_implementacion_backend.md",
+      "docs/hoja_de_ruta_de_implementaci_n_frontend.md": "docs/hoja_de_ruta_implementacion_frontend.md",
+      "figma/": "Eliminado (diseño ya migrado a front/src/)",
+      "docs/manuales/*.pdf": "docs/manuales/manual_usuario_{reportante,analista,administrador}.md",
+      "docs/manuales/Manual de usuario RiesgoTI — {Rol}.md": "docs/manuales/manual_usuario_{rol}.md"
+    },
+    "historical_references_policy": "Las menciones a rutas retiradas en changelogs CHG-0001..CHG-0008, en notas de roadmaps y en comentarios de código (p. ej. figma/src/data.ts como origen de semillas) se conservan como procedencia histórica.",
+    "vcs": {
+      "updated_by": "CHG-0011",
+      "model": "Superproyecto Git (raíz) + submódulos back/ y front/, inicializados en la rama main sin commits (los commits iniciales y el push los hace el usuario manualmente).",
+      "repositories": {
+        "riesgoti (raíz)": {
+          "url": "https://github.com/<usuario>/riesgoti.git",
+          "status": "PLACEHOLDER"
+        },
+        "riesgoti-back (back/)": {
+          "url": "https://github.com/eli899/riesgoti-back.git",
+          "status": "CONFIGURADA"
+        },
+        "riesgoti-front (front/)": {
+          "url": "https://github.com/<usuario>/riesgoti-front.git",
+          "status": "PLACEHOLDER"
+        }
+      },
+      "config_files": [
+        ".gitmodules",
+        ".gitignore",
+        ".gitattributes",
+        "back/.gitignore",
+        "back/.gitattributes",
+        "back/.dockerignore",
+        "front/.gitignore",
+        "front/.gitattributes"
+      ],
+      "not_versioned": [
+        ".env y .env.* (excepto .env.example)",
+        "desktop.ini, Thumbs.db, .DS_Store",
+        "node_modules/",
+        "back/storage/{pdfs,evidences,faiss_indices}/* (excepto .gitkeep)",
+        "back/roadmap/ y front/roadmap/",
+        "changelogs/",
+        ".claude/settings.local.json"
+      ],
+      "line_endings": "LF en todos los repositorios (text=auto eol=lf); CRLF solo para *.ps1/*.bat/*.cmd; binarios: pdf, png, jpg, index, ico, woff.",
+      "docker_image": "back/.dockerignore excluye .env: los secretos llegan por env_file de docker-compose.yml.",
+      "registration_procedure": "Tras el commit inicial de cada submódulo: git add .gitmodules back front && git submodule init (verificado en entorno de prueba). Documentado en README.md §10.",
+      "commit_order_rule": "Commit primero en el submódulo y después en la raíz para actualizar el puntero del submódulo."
+    },
+    "user_manuals": {
+      "updated_by": "CHG-0012",
+      "index": "docs/manuales/README.md",
+      "manuals": {
+        "REPORTANTE": {
+          "file": "docs/manuales/manual_usuario_reportante.md",
+          "images": 9,
+          "diagram": "Estados de una incidencia (5 estados)"
+        },
+        "ANALISTA": {
+          "file": "docs/manuales/manual_usuario_analista.md",
+          "images": 16,
+          "diagram": "Ciclo de una versión de riesgo (3 decisiones)"
+        },
+        "ADMIN": {
+          "file": "docs/manuales/manual_usuario_administrador.md",
+          "images": 12,
+          "diagram": "Ciclo de vida de una versión documental (5 estados)"
+        }
+      },
+      "format": "Markdown; imágenes con ruta relativa capturas/*.png y texto alternativo descriptivo; diagramas Mermaid stateDiagram-v2. Los PDF originales fueron retirados por el usuario."
+    }
+  },
+  "database_schema": {
+    "total_ddl_tables": 31,
+    "total_additive_technical_tables": 1,
+    "domains": [
+      {
+        "domain": "1. Catálogos Base y Seguridad",
+        "django_apps": [
+          "accounts",
+          "assets_matrix",
+          "documents_rag",
+          "risks"
+        ],
+        "tables": [
+          {
+            "table": "ROL",
+            "pk": [
+              "id"
+            ],
+            "fks": [],
+            "key_columns": [
+              "id",
+              "codigo",
+              "nombre",
+              "activo",
+              "creado_en",
+              "ultima_modificacion"
+            ],
+            "seed_values": [
+              "REPORTANTE",
+              "ANALISTA",
+              "ADMIN"
+            ]
+          },
+          {
+            "table": "PERMISO",
+            "pk": [
+              "id"
+            ],
+            "fks": [],
+            "key_columns": [
+              "id",
+              "codigo",
+              "descripcion",
+              "activo",
+              "creado_en",
+              "ultima_modificacion"
+            ]
+          },
+          {
+            "table": "ROL_PERMISO",
+            "pk": [
+              "rol_id",
+              "permiso_id"
+            ],
+            "is_composite_pk": true,
+            "fks": [
+              {
+                "column": "rol_id",
+                "references": "ROL(id)"
+              },
+              {
+                "column": "permiso_id",
+                "references": "PERMISO(id)"
+              }
+            ]
+          },
+          {
+            "table": "USUARIO",
+            "pk": [
+              "id"
+            ],
+            "unique": [
+              "correo"
+            ],
+            "generated_columns": [
+              "nombre_completo GENERATED ALWAYS AS (CONCAT(nombres, ' ', apellidos)) STORED"
+            ],
+            "fks": [
+              {
+                "column": "rol_id",
+                "references": "ROL(id)"
+              }
+            ],
+            "key_columns": [
+              "id",
+              "rol_id",
+              "nombres",
+              "apellidos",
+              "nombre_completo",
+              "correo",
+              "password_hash",
+              "activo"
+            ]
+          },
+          {
+            "table": "TIPO_ACTIVO",
+            "pk": [
+              "id"
+            ],
+            "fks": [],
+            "key_columns": [
+              "id",
+              "nombre",
+              "activo"
+            ]
+          },
+          {
+            "table": "ACTIVO",
+            "pk": [
+              "id"
+            ],
+            "fks": [
+              {
+                "column": "tipo_id",
+                "references": "TIPO_ACTIVO(id)"
+              }
+            ],
+            "key_columns": [
+              "id",
+              "tipo_id",
+              "codigo",
+              "nombre",
+              "descripcion",
+              "criticidad",
+              "activo"
+            ]
+          },
+          {
+            "table": "DOCUMENTO",
+            "pk": [
+              "id"
+            ],
+            "fks": [],
+            "key_columns": [
+              "id",
+              "codigo",
+              "titulo",
+              "descripcion"
+            ]
+          },
+          {
+            "table": "RIESGO",
+            "pk": [
+              "id"
+            ],
+            "fks": [],
+            "key_columns": [
+              "id",
+              "codigo",
+              "creado_en",
+              "ultima_modificacion"
+            ]
+          },
+          {
+            "table": "NIVEL_RIESGO",
+            "pk": [
+              "id"
+            ],
+            "fks": [],
+            "key_columns": [
+              "id",
+              "codigo",
+              "orden"
+            ],
+            "seed_values": [
+              "BAJO (1)",
+              "MEDIO (2)",
+              "ALTO (3)",
+              "CRITICO (4)"
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "2. Matriz de Riesgo y Criterios (5x5)",
+        "django_apps": [
+          "assets_matrix"
+        ],
+        "tables": [
+          {
+            "table": "CONFIGURACION_MATRIZ",
+            "pk": [
+              "id"
+            ],
+            "fks": [
+              {
+                "column": "creada_por",
+                "references": "USUARIO(id)"
+              }
+            ],
+            "key_columns": [
+              "id",
+              "nombre",
+              "version",
+              "estado",
+              "activa",
+              "creada_por",
+              "creada_en"
+            ]
+          },
+          {
+            "table": "CRITERIO_PROBABILIDAD",
+            "pk": [
+              "matriz_id",
+              "valor"
+            ],
+            "is_composite_pk": true,
+            "fks": [
+              {
+                "column": "matriz_id",
+                "references": "CONFIGURACION_MATRIZ(id)"
+              }
+            ],
+            "key_columns": [
+              "matriz_id",
+              "valor",
+              "nombre",
+              "descripcion"
+            ]
+          },
+          {
+            "table": "CRITERIO_IMPACTO",
+            "pk": [
+              "matriz_id",
+              "valor"
+            ],
+            "is_composite_pk": true,
+            "fks": [
+              {
+                "column": "matriz_id",
+                "references": "CONFIGURACION_MATRIZ(id)"
+              }
+            ],
+            "key_columns": [
+              "matriz_id",
+              "valor",
+              "nombre",
+              "descripcion"
+            ]
+          },
+          {
+            "table": "CELDA_MATRIZ",
+            "pk": [
+              "id"
+            ],
+            "fks": [
+              {
+                "column": "matriz_id",
+                "references": "CONFIGURACION_MATRIZ(id)"
+              },
+              {
+                "column": "nivel_id",
+                "references": "NIVEL_RIESGO(id)"
+              },
+              {
+                "column": "(matriz_id, probabilidad)",
+                "references": "CRITERIO_PROBABILIDAD(matriz_id, valor)"
+              },
+              {
+                "column": "(matriz_id, impacto)",
+                "references": "CRITERIO_IMPACTO(matriz_id, valor)"
+              }
+            ],
+            "key_columns": [
+              "id",
+              "matriz_id",
+              "probabilidad",
+              "impacto",
+              "nivel_id"
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "3. Gestión Documental, RAG y Configuración IA",
+        "django_apps": [
+          "documents_rag",
+          "ai_config"
+        ],
+        "tables": [
+          {
+            "table": "VERSION_DOCUMENTO",
+            "pk": [
+              "id"
+            ],
+            "fks": [
+              {
+                "column": "documento_id",
+                "references": "DOCUMENTO(id)"
+              },
+              {
+                "column": "cargada_por",
+                "references": "USUARIO(id)"
+              },
+              {
+                "column": "autorizada_por",
+                "references": "USUARIO(id)"
+              }
+            ],
+            "key_columns": [
+              "id",
+              "documento_id",
+              "version",
+              "clave_archivo",
+              "sha256",
+              "cargada_por",
+              "cargada_en",
+              "procesamiento",
+              "finalidad",
+              "modelo_embedding",
+              "version_segmentacion",
+              "autorizada_por",
+              "autorizada_en",
+              "activa",
+              "error_procesamiento"
+            ]
+          },
+          {
+            "table": "FRAGMENTO_DOCUMENTO",
+            "pk": [
+              "id"
+            ],
+            "fks": [
+              {
+                "column": "version_documento_id",
+                "references": "VERSION_DOCUMENTO(id)"
+              }
+            ],
+            "key_columns": [
+              "id",
+              "version_documento_id",
+              "orden",
+              "pagina_inicio",
+              "pagina_fin",
+              "contenido"
+            ]
+          },
+          {
+            "table": "CONFIGURACION_IA_RAG",
+            "is_additive_extension": true,
+            "pk": [
+              "id"
+            ],
+            "fks": [
+              {
+                "column": "actualizada_por",
+                "references": "USUARIO(id)"
+              }
+            ],
+            "key_columns": [
+              "id",
+              "version_configuracion",
+              "proveedor_llm",
+              "modelo_llm",
+              "endpoint_base_llm",
+              "api_key_llm_cifrada",
+              "api_key_llm_mascara",
+              "proveedor_embedding",
+              "modelo_embedding",
+              "api_key_embedding_cifrada",
+              "api_key_embedding_mascara",
+              "chunk_size",
+              "chunk_overlap",
+              "top_k",
+              "umbral_similitud",
+              "activa",
+              "actualizada_por",
+              "creado_en"
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "4. Versiones de Riesgo, Evaluación y Decisión",
+        "django_apps": [
+          "risks"
+        ],
+        "tables": [
+          {
+            "table": "VERSION_RIESGO",
+            "pk": [
+              "id"
+            ],
+            "fks": [
+              {
+                "column": "riesgo_id",
+                "references": "RIESGO(id)"
+              },
+              {
+                "column": "creada_por",
+                "references": "USUARIO(id)"
+              },
+              {
+                "column": "activo_confirmado_id",
+                "references": "ACTIVO(id)"
+              },
+              {
+                "column": "agrupacion_confirmada_por",
+                "references": "USUARIO(id)"
+              }
+            ],
+            "key_columns": [
+              "id",
+              "riesgo_id",
+              "numero",
+              "origen",
+              "creada_por",
+              "creada_en",
+              "titulo",
+              "descripcion",
+              "amenaza",
+              "vulnerabilidad",
+              "consecuencia",
+              "recomendacion",
+              "origen_recomendacion",
+              "activo_confirmado_id",
+              "agrupacion_confirmada_por",
+              "agrupacion_confirmada_en"
+            ]
+          },
+          {
+            "table": "EVALUACION_RIESGO",
+            "pk": [
+              "version_id"
+            ],
+            "is_one_to_one_pk": true,
+            "fks": [
+              {
+                "column": "version_id",
+                "references": "VERSION_RIESGO(id)"
+              },
+              {
+                "column": "celda_id",
+                "references": "CELDA_MATRIZ(id)"
+              },
+              {
+                "column": "evaluador_id",
+                "references": "USUARIO(id)"
+              }
+            ],
+            "key_columns": [
+              "version_id",
+              "celda_id",
+              "evaluador_id",
+              "justificacion",
+              "evaluada_en"
+            ]
+          },
+          {
+            "table": "DECISION_RIESGO",
+            "pk": [
+              "version_id"
+            ],
+            "is_one_to_one_pk": true,
+            "fks": [
+              {
+                "column": "version_id",
+                "references": "VERSION_RIESGO(id)"
+              },
+              {
+                "column": "analista_id",
+                "references": "USUARIO(id)"
+              }
+            ],
+            "key_columns": [
+              "version_id",
+              "accion",
+              "analista_id",
+              "observacion",
+              "justificacion_sin_fuentes",
+              "decidida_en"
+            ]
+          },
+          {
+            "table": "CITA_VERSION_RIESGO",
+            "pk": [
+              "version_id",
+              "numero"
+            ],
+            "is_composite_pk": true,
+            "fks": [
+              {
+                "column": "version_id",
+                "references": "VERSION_RIESGO(id)"
+              },
+              {
+                "column": "fragmento_id",
+                "references": "FRAGMENTO_DOCUMENTO(id)"
+              }
+            ],
+            "key_columns": [
+              "version_id",
+              "numero",
+              "fragmento_id"
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "5. Incidencias, Atención Humana (N2) y Evidencias",
+        "django_apps": [
+          "incidents"
+        ],
+        "tables": [
+          {
+            "table": "INCIDENCIA",
+            "pk": [
+              "id"
+            ],
+            "fks": [
+              {
+                "column": "reportante_id",
+                "references": "USUARIO(id)"
+              },
+              {
+                "column": "activo_reportado_id",
+                "references": "ACTIVO(id)"
+              }
+            ],
+            "key_columns": [
+              "id",
+              "reportante_id",
+              "activo_reportado_id",
+              "activo_texto",
+              "titulo",
+              "descripcion",
+              "registrada_en"
+            ]
+          },
+          {
+            "table": "HISTORIAL_ESTADO_INCIDENCIA",
+            "pk": [
+              "id"
+            ],
+            "fks": [
+              {
+                "column": "incidencia_id",
+                "references": "INCIDENCIA(id)"
+              },
+              {
+                "column": "actor_id",
+                "references": "USUARIO(id)"
+              }
+            ],
+            "key_columns": [
+              "id",
+              "incidencia_id",
+              "estado",
+              "actor_id",
+              "motivo",
+              "ocurrido_en"
+            ]
+          },
+          {
+            "table": "ATENCION_INCIDENCIA",
+            "pk": [
+              "incidencia_id"
+            ],
+            "is_one_to_one_pk": true,
+            "fks": [
+              {
+                "column": "incidencia_id",
+                "references": "INCIDENCIA(id)"
+              },
+              {
+                "column": "analista_id",
+                "references": "USUARIO(id)"
+              }
+            ],
+            "key_columns": [
+              "incidencia_id",
+              "analista_id",
+              "iniciada_en",
+              "acciones",
+              "nota_resolucion",
+              "cerrada_en"
+            ]
+          },
+          {
+            "table": "EVIDENCIA_INCIDENCIA",
+            "pk": [
+              "id"
+            ],
+            "fks": [
+              {
+                "column": "incidencia_id",
+                "references": "INCIDENCIA(id)"
+              }
+            ],
+            "key_columns": [
+              "id",
+              "incidencia_id",
+              "nombre_original",
+              "clave_archivo",
+              "tipo_mime",
+              "bytes",
+              "sha256",
+              "creada_en"
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "6. Tareas de IA, Análisis Estratégico y Orientación Operativa",
+        "django_apps": [
+          "risks"
+        ],
+        "tables": [
+          {
+            "table": "TAREA_IA",
+            "pk": [
+              "id"
+            ],
+            "fks": [
+              {
+                "column": "incidencia_id",
+                "references": "INCIDENCIA(id)"
+              },
+              {
+                "column": "solicitada_por",
+                "references": "USUARIO(id)"
+              }
+            ],
+            "key_columns": [
+              "id",
+              "incidencia_id",
+              "rama",
+              "intento",
+              "clave_idempotencia",
+              "estado",
+              "proveedor",
+              "modelo",
+              "version_configuracion",
+              "solicitada_por",
+              "creada_en",
+              "iniciada_en",
+              "terminada_en",
+              "error_codigo",
+              "error_detalle"
+            ]
+          },
+          {
+            "table": "ANALISIS_INCIDENCIA",
+            "pk": [
+              "tarea_id"
+            ],
+            "is_one_to_one_pk": true,
+            "fks": [
+              {
+                "column": "tarea_id",
+                "references": "TAREA_IA(id)"
+              }
+            ],
+            "key_columns": [
+              "tarea_id",
+              "activo_identificado",
+              "amenaza",
+              "vulnerabilidad",
+              "consecuencia",
+              "riesgo_candidato",
+              "creado_en"
+            ]
+          },
+          {
+            "table": "VERSION_INCIDENCIA",
+            "pk": [
+              "version_id",
+              "analisis_id"
+            ],
+            "is_composite_pk": true,
+            "fks": [
+              {
+                "column": "version_id",
+                "references": "VERSION_RIESGO(id)"
+              },
+              {
+                "column": "analisis_id",
+                "references": "ANALISIS_INCIDENCIA(tarea_id)"
+              },
+              {
+                "column": "revisada_por",
+                "references": "USUARIO(id)"
+              }
+            ],
+            "key_columns": [
+              "version_id",
+              "analisis_id",
+              "estado",
+              "similitud",
+              "motivo_similitud",
+              "extracto_reporte",
+              "revisada_por",
+              "revisada_en",
+              "motivo_retiro"
+            ]
+          },
+          {
+            "table": "ORIENTACION_OPERATIVA",
+            "pk": [
+              "tarea_id"
+            ],
+            "is_one_to_one_pk": true,
+            "fks": [
+              {
+                "column": "tarea_id",
+                "references": "TAREA_IA(id)"
+              }
+            ],
+            "key_columns": [
+              "tarea_id",
+              "tipo",
+              "resumen",
+              "advertencia",
+              "creada_en"
+            ]
+          },
+          {
+            "table": "PASO_ORIENTACION",
+            "pk": [
+              "tarea_id",
+              "orden"
+            ],
+            "is_composite_pk": true,
+            "fks": [
+              {
+                "column": "tarea_id",
+                "references": "ORIENTACION_OPERATIVA(tarea_id)"
+              }
+            ],
+            "key_columns": [
+              "tarea_id",
+              "orden",
+              "instruccion"
+            ]
+          },
+          {
+            "table": "RESPUESTA_ORIENTACION",
+            "pk": [
+              "tarea_id"
+            ],
+            "is_one_to_one_pk": true,
+            "fks": [
+              {
+                "column": "tarea_id",
+                "references": "ORIENTACION_OPERATIVA(tarea_id)"
+              }
+            ],
+            "key_columns": [
+              "tarea_id",
+              "resultado",
+              "respondida_en"
+            ]
+          },
+          {
+            "table": "CITA_ORIENTACION",
+            "pk": [
+              "tarea_id",
+              "numero"
+            ],
+            "is_composite_pk": true,
+            "fks": [
+              {
+                "column": "tarea_id",
+                "references": "ORIENTACION_OPERATIVA(tarea_id)"
+              },
+              {
+                "column": "fragmento_id",
+                "references": "FRAGMENTO_DOCUMENTO(id)"
+              }
+            ],
+            "key_columns": [
+              "tarea_id",
+              "numero",
+              "fragmento_id"
+            ]
+          }
+        ]
+      },
+      {
+        "domain": "7. Auditoría Transversal",
+        "django_apps": [
+          "audit"
+        ],
+        "tables": [
+          {
+            "table": "EVENTO_AUDITORIA",
+            "pk": [
+              "id"
+            ],
+            "fks": [
+              {
+                "column": "actor_id",
+                "references": "USUARIO(id)"
+              },
+              {
+                "column": "incidencia_id",
+                "references": "INCIDENCIA(id)"
+              },
+              {
+                "column": "version_riesgo_id",
+                "references": "VERSION_RIESGO(id)"
+              },
+              {
+                "column": "version_documento_id",
+                "references": "VERSION_DOCUMENTO(id)"
+              },
+              {
+                "column": "matriz_id",
+                "references": "CONFIGURACION_MATRIZ(id)"
+              },
+              {
+                "column": "activo_id",
+                "references": "ACTIVO(id)"
+              },
+              {
+                "column": "usuario_objeto_id",
+                "references": "USUARIO(id)"
+              },
+              {
+                "column": "rol_id",
+                "references": "ROL(id)"
+              }
+            ],
+            "key_columns": [
+              "id",
+              "actor_id",
+              "incidencia_id",
+              "version_riesgo_id",
+              "version_documento_id",
+              "matriz_id",
+              "activo_id",
+              "usuario_objeto_id",
+              "rol_id",
+              "accion",
+              "detalle",
+              "ocurrido_en"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "master_module_index": [
+    {
+      "order": 1,
+      "code": "MOD-01-DB-MODELS-SEEDS",
+      "layer": "BACKEND (Etapa 1)",
+      "title": "Modelos Django Mapeados a bd.sql, Migraciones PostgreSQL y Semillas (seed_riesgoti)",
+      "target_paths": [
+        "back/config/",
+        "back/apps/accounts/models.py",
+        "back/apps/assets_matrix/models.py",
+        "back/apps/ai_config/models.py",
+        "back/apps/documents_rag/models.py",
+        "back/apps/incidents/models.py",
+        "back/apps/risks/models.py",
+        "back/apps/audit/models.py",
+        "back/apps/accounts/management/commands/seed_riesgoti.py"
+      ],
+      "dependencies": [],
+      "tables_involved": [
+        "ALL 31 DDL TABLES (bd.sql) + CONFIGURACION_IA_RAG"
+      ],
+      "assigned_subagent": "db-architect",
+      "status": "COMPLETED"
+    },
+    {
+      "order": 2,
+      "code": "MOD-02-AUTH-RBAC-CRYPTO-AUDIT",
+      "layer": "BACKEND (Etapa 2)",
+      "title": "Autenticación SimpleJWT, Permisos RBAC/SoD, Auditoría Transversal y Criptografía AES-256-GCM + Catálogos Base",
+      "target_paths": [
+        "back/apps/accounts/serializers.py",
+        "back/apps/accounts/permissions.py",
+        "back/apps/accounts/views.py",
+        "back/apps/audit/mixins.py",
+        "back/apps/ai_config/crypto.py",
+        "back/apps/ai_config/views.py",
+        "back/apps/assets_matrix/views.py"
+      ],
+      "dependencies": [
+        "MOD-01-DB-MODELS-SEEDS"
+      ],
+      "tables_involved": [
+        "USUARIO",
+        "ROL",
+        "PERMISO",
+        "ROL_PERMISO",
+        "CONFIGURACION_IA_RAG",
+        "TIPO_ACTIVO",
+        "ACTIVO",
+        "CONFIGURACION_MATRIZ",
+        "CELDA_MATRIZ",
+        "EVENTO_AUDITORIA"
+      ],
+      "assigned_subagent": "backend-builder",
+      "status": "COMPLETED"
+    },
+    {
+      "order": 3,
+      "code": "MOD-03-DOC-INGESTION-RAG-FAISS",
+      "layer": "BACKEND (Etapa 3)",
+      "title": "Pipeline de Ingesta Documental (PDF -> PyMuPDF4LLM Markdown por Página -> Chunks con Trazabilidad -> FAISS) y Gobernanza",
+      "target_paths": [
+        "back/apps/documents_rag/serializers.py",
+        "back/apps/documents_rag/services.py",
+        "back/apps/documents_rag/tasks.py",
+        "back/apps/documents_rag/faiss_store.py",
+        "back/apps/documents_rag/views.py"
+      ],
+      "dependencies": [
+        "MOD-01-DB-MODELS-SEEDS",
+        "MOD-02-AUTH-RBAC-CRYPTO-AUDIT"
+      ],
+      "tables_involved": [
+        "DOCUMENTO",
+        "VERSION_DOCUMENTO",
+        "FRAGMENTO_DOCUMENTO",
+        "CONFIGURACION_IA_RAG",
+        "EVENTO_AUDITORIA"
+      ],
+      "assigned_subagent": "backend-builder",
+      "status": "COMPLETED"
+    },
+    {
+      "order": 4,
+      "code": "MOD-04-INCIDENTS-N2-ATTENTION",
+      "layer": "BACKEND (Etapa 4)",
+      "title": "Endpoints Transaccionales de Incidencias, Evidencias, Feedback de Orientación y Consola de Atención Humana (N2)",
+      "target_paths": [
+        "back/apps/incidents/serializers.py",
+        "back/apps/incidents/services.py",
+        "back/apps/incidents/views.py"
+      ],
+      "dependencies": [
+        "MOD-01-DB-MODELS-SEEDS",
+        "MOD-02-AUTH-RBAC-CRYPTO-AUDIT"
+      ],
+      "tables_involved": [
+        "INCIDENCIA",
+        "EVIDENCIA_INCIDENCIA",
+        "HISTORIAL_ESTADO_INCIDENCIA",
+        "ATENCION_INCIDENCIA",
+        "TAREA_IA",
+        "RESPUESTA_ORIENTACION",
+        "EVENTO_AUDITORIA"
+      ],
+      "assigned_subagent": "backend-builder",
+      "status": "COMPLETED"
+    },
+    {
+      "order": 5,
+      "code": "MOD-05-CELERY-WORKERS-RAG-STRATEGIC",
+      "layer": "BACKEND (Etapa 5)",
+      "title": "Workers Asíncronos Celery: RAG Operativo (ORIENTACION_OPERATIVA) y Análisis Estratégico ISO (ANALISIS_INCIDENCIA + VERSION_RIESGO)",
+      "target_paths": [
+        "back/apps/risks/tasks.py",
+        "back/apps/risks/llm_schemas.py",
+        "back/apps/risks/services.py"
+      ],
+      "dependencies": [
+        "MOD-02-AUTH-RBAC-CRYPTO-AUDIT",
+        "MOD-03-DOC-INGESTION-RAG-FAISS",
+        "MOD-04-INCIDENTS-N2-ATTENTION"
+      ],
+      "tables_involved": [
+        "TAREA_IA",
+        "ORIENTACION_OPERATIVA",
+        "PASO_ORIENTACION",
+        "CITA_ORIENTACION",
+        "ANALISIS_INCIDENCIA",
+        "RIESGO",
+        "VERSION_RIESGO",
+        "VERSION_INCIDENCIA",
+        "CITA_VERSION_RIESGO"
+      ],
+      "assigned_subagent": "backend-builder",
+      "status": "COMPLETED"
+    },
+    {
+      "order": 6,
+      "code": "MOD-06-RISK-EVALUATION-DECISIONS-DASHBOARD",
+      "layer": "BACKEND (Etapa 6)",
+      "title": "ViewSets de Depuración de Agrupaciones IA, Evaluación en Matriz 5x5, Decisiones ISO 27005 y Tablero de Indicadores",
+      "target_paths": [
+        "back/apps/risks/serializers.py",
+        "back/apps/risks/views.py"
+      ],
+      "dependencies": [
+        "MOD-01-DB-MODELS-SEEDS",
+        "MOD-02-AUTH-RBAC-CRYPTO-AUDIT",
+        "MOD-05-CELERY-WORKERS-RAG-STRATEGIC"
+      ],
+      "tables_involved": [
+        "RIESGO",
+        "VERSION_RIESGO",
+        "VERSION_INCIDENCIA",
+        "EVALUACION_RIESGO",
+        "DECISION_RIESGO",
+        "CITA_VERSION_RIESGO",
+        "CELDA_MATRIZ",
+        "EVENTO_AUDITORIA"
+      ],
+      "assigned_subagent": "backend-builder",
+      "status": "COMPLETED"
+    },
+    {
+      "order": 7,
+      "code": "MOD-07-FRONT-CORE-RTK-ZOD-AUTH",
+      "layer": "FRONTEND (Etapa 1)",
+      "title": "Fundación Frontend: Migración Base Figma a front/, Redux Store, RTK Query APIs, Guardia RBAC/SoD y Esquemas Zod",
+      "target_paths": [
+        "front/src/app/store.ts",
+        "front/src/app/hooks.ts",
+        "front/src/app/api/baseApi.ts",
+        "front/src/app/api/adminApi.ts",
+        "front/src/app/api/incidentsApi.ts",
+        "front/src/app/api/risksApi.ts",
+        "front/src/features/auth/authSlice.ts",
+        "front/src/features/auth/RequirePermission.tsx",
+        "front/src/features/ui/uiSlice.ts",
+        "front/src/schemas/aiConfig.schema.ts",
+        "front/src/schemas/document.schema.ts",
+        "front/src/schemas/incident.schema.ts",
+        "front/src/schemas/riskEvaluation.schema.ts",
+        "front/src/components/ui.tsx",
+        "front/src/components/CitationDrawer.tsx",
+        "front/src/app/api/authApi.ts",
+        "front/src/mappers/",
+        "front/src/hooks/useAuthSession.ts",
+        "front/src/hooks/useCitationDrawer.ts"
+      ],
+      "dependencies": [
+        "MOD-02-AUTH-RBAC-CRYPTO-AUDIT"
+      ],
+      "tables_involved": [],
+      "assigned_subagent": "frontend-builder",
+      "status": "COMPLETED"
+    },
+    {
+      "order": 8,
+      "code": "MOD-08-FRONT-ADMIN-PORTAL",
+      "layer": "FRONTEND (Etapa 2)",
+      "title": "Vistas del Administrador: Configuración IA/RAG + Test Ping, Subida PDF con Polling, Previsualización Markdown y Matriz 5x5",
+      "target_paths": [
+        "front/src/pages/admin/",
+        "front/src/components/admin/",
+        "front/src/hooks/admin/",
+        "front/src/pages/LoginPage.tsx",
+        "front/src/components/layout/AppShell.tsx"
+      ],
+      "dependencies": [
+        "MOD-02-AUTH-RBAC-CRYPTO-AUDIT",
+        "MOD-03-DOC-INGESTION-RAG-FAISS",
+        "MOD-07-FRONT-CORE-RTK-ZOD-AUTH"
+      ],
+      "tables_involved": [
+        "CONFIGURACION_IA_RAG",
+        "DOCUMENTO",
+        "VERSION_DOCUMENTO",
+        "FRAGMENTO_DOCUMENTO",
+        "CONFIGURACION_MATRIZ",
+        "CELDA_MATRIZ",
+        "ACTIVO"
+      ],
+      "assigned_subagent": "frontend-builder",
+      "status": "COMPLETED"
+    },
+    {
+      "order": 9,
+      "code": "MOD-09-FRONT-REPORTER-PORTAL",
+      "layer": "FRONTEND (Etapa 3)",
+      "title": "Vistas del Reportante: Formulario de Incidencias y Evidencias, Polling de Solución RAG, CitationDrawer y Confirmación",
+      "target_paths": [
+        "front/src/pages/reporter/",
+        "front/src/components/reporter/",
+        "front/src/hooks/incidents/",
+        "front/src/components/CitationDrawer.tsx"
+      ],
+      "dependencies": [
+        "MOD-04-INCIDENTS-N2-ATTENTION",
+        "MOD-05-CELERY-WORKERS-RAG-STRATEGIC",
+        "MOD-07-FRONT-CORE-RTK-ZOD-AUTH"
+      ],
+      "tables_involved": [
+        "INCIDENCIA",
+        "EVIDENCIA_INCIDENCIA",
+        "TAREA_IA",
+        "ORIENTACION_OPERATIVA",
+        "PASO_ORIENTACION",
+        "CITA_ORIENTACION",
+        "RESPUESTA_ORIENTACION"
+      ],
+      "assigned_subagent": "frontend-builder",
+      "status": "COMPLETED"
+    },
+    {
+      "order": 10,
+      "code": "MOD-10-FRONT-ANALYST-N2-AND-RISK-GOVERNANCE",
+      "layer": "FRONTEND (Etapa 4) + QA E2E",
+      "title": "Vistas del Analista: Consola N2 de Atención Humana (staff.tsx), Agrupación IA, Matriz Interactiva 5x5, Decisiones ISO y Dashboard (risk.tsx)",
+      "target_paths": [
+        "front/src/pages/staff/",
+        "front/src/components/staff/",
+        "front/src/hooks/incidents/",
+        "front/src/pages/risk/",
+        "front/src/components/risk/",
+        "front/src/hooks/risks/",
+        "front/src/App.tsx",
+        "front/src/pages/AccountPage.tsx",
+        "front/src/pages/admin/AuditPage.tsx"
+      ],
+      "dependencies": [
+        "MOD-04-INCIDENTS-N2-ATTENTION",
+        "MOD-05-CELERY-WORKERS-RAG-STRATEGIC",
+        "MOD-06-RISK-EVALUATION-DECISIONS-DASHBOARD",
+        "MOD-07-FRONT-CORE-RTK-ZOD-AUTH"
+      ],
+      "tables_involved": [
+        "ATENCION_INCIDENCIA",
+        "ANALISIS_INCIDENCIA",
+        "VERSION_RIESGO",
+        "VERSION_INCIDENCIA",
+        "EVALUACION_RIESGO",
+        "DECISION_RIESGO",
+        "CITA_VERSION_RIESGO",
+        "EVENTO_AUDITORIA",
+        "RIESGO"
+      ],
+      "assigned_subagent": "frontend-builder",
+      "status": "COMPLETED",
+      "progress": {
+        "MOD-10A-FRONT-STAFF-N2 (v0.4)": "COMPLETED",
+        "MOD-10B-FRONT-RISK-WORKSPACE (v0.5)": "COMPLETED",
+        "v0.6 decisiones ISO y tablero": "COMPLETED"
+      }
+    }
+  ],
+  "roadmap_plans": {
+    "batch_size_rule": "Max 2 modules per turn (Backend + Frontend pairs)",
+    "backend_roadmaps": [
+      {
+        "version": "v0.0",
+        "file": "back/roadmap/v0.0_setup_inicial_y_conexion_brain.md",
+        "module_code": "MOD-00-BACKEND-SETUP",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "docker_services": [
+            "db (postgres:16-alpine en puerto 5432, BD riesgo_ti)",
+            "redis (redis:7-alpine en puerto 6379)",
+            "pgadmin (dpage/pgadmin4 en http://localhost:5050 con servers.json preconfigurado)",
+            "backend (python:3.12-slim + requirements.txt en http://localhost:8000)",
+            "celery_worker (celery -A config worker -l info --pool=solo)"
+          ],
+          "files_created": [
+            "docker-compose.yml",
+            "back/Dockerfile",
+            "back/.dockerignore",
+            "back/docker/pgadmin/servers.json",
+            "back/manage.py",
+            "back/requirements.txt",
+            "back/.env.example",
+            "back/.env",
+            "back/.gitignore",
+            "back/config/__init__.py",
+            "back/config/settings.py",
+            "back/config/urls.py",
+            "back/config/celery.py",
+            "back/config/wsgi.py",
+            "back/config/asgi.py",
+            "back/config/serializers.py",
+            "back/config/views.py",
+            "back/apps/{accounts,assets_matrix,ai_config,documents_rag,incidents,risks,audit}/{__init__.py,apps.py}",
+            "back/storage/{pdfs,evidences,faiss_indices}/.gitkeep"
+          ],
+          "endpoints": [
+            "GET /api/v1/health/ (AllowAny, HealthcheckOutputSerializer, 503 si degradado)",
+            "GET /api/schema/",
+            "GET /api/docs/"
+          ],
+          "deviations": [
+            "AUTH_USER_MODEL = 'accounts.Usuario' queda comentado en settings.py hasta v0.1 (el modelo aún no existe y manage.py check fallaría). No ejecutar migrate antes de activarlo.",
+            "back/.env usa RIESGOTI_MASTER_KEY y SECRET_KEY aleatorias; .env.example conserva el valor de ejemplo."
+          ]
+        }
+      },
+      {
+        "version": "v0.1",
+        "file": "back/roadmap/v0.1_modulo_modelos_bd_migraciones_y_semillas.md",
+        "module_code": "MOD-01-DB-MODELS-SEEDS",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "django_version": "5.2.18 (CompositePrimaryKey nativo)",
+          "files_created": [
+            "back/apps/{accounts,assets_matrix,ai_config,documents_rag,incidents,risks,audit}/models.py",
+            "back/apps/{accounts,assets_matrix,ai_config,documents_rag,incidents,risks,audit}/migrations/0001_initial.py",
+            "back/apps/accounts/migrations/0002_bd_sql_triggers_y_columna_generada.py (función update_ultima_modificacion_column, columna generada USUARIO.nombre_completo, triggers)",
+            "back/apps/assets_matrix/migrations/0002_bd_sql_fks_compuestas_y_triggers.py (FK_CELDA_MATRIZ_PROB, FK_CELDA_MATRIZ_IMP, triggers)",
+            "back/apps/documents_rag/migrations/0002_bd_sql_triggers.py",
+            "back/apps/risks/migrations/0002_bd_sql_triggers.py",
+            "back/apps/accounts/management/commands/seed_riesgoti.py"
+          ],
+          "files_modified": [
+            "back/config/settings.py (AUTH_USER_MODEL = 'accounts.Usuario' activado, previsto desde v0.0)"
+          ],
+          "materialized_tables": "31 tablas DDL de bd.sql + CONFIGURACION_IA_RAG (32/32 verificadas por introspección)",
+          "seed_summary": "ROL 3, PERMISO 15, ROL_PERMISO 19, USUARIO 6 (password RiesgoTI2026!), TIPO_ACTIVO 6, ACTIVO 7, NIVEL_RIESGO 4, CONFIGURACION_MATRIZ 1 activa, CELDA_MATRIZ 25, CONFIGURACION_IA_RAG v1.0-default. Idempotente (ejecutado 2 veces sin duplicados).",
+          "dod_verification": [
+            "CeldaMatriz(P=4, I=3) == 'ALTO'",
+            "SoD: ADMIN sin riesgo.evaluar / riesgo.validar / riesgo.revisar_agrupacion",
+            "7 PKs compuestas presentes en PostgreSQL",
+            "15 triggers ultima_modificacion activos (verificado con UPDATE SQL directo)",
+            "FK compuesta CELDA_MATRIZ rechaza coordenadas sin criterio (IntegrityError)",
+            "authenticate(correo, password) funcional con usuario semilla",
+            "GET /api/v1/health/ -> status ok, database connected"
+          ],
+          "deviations": [
+            "Columna generada nombre_completo usa (nombres || ' ' || apellidos): CONCAT() no es IMMUTABLE en PostgreSQL y no se admite en columnas GENERATED.",
+            "Se omiten los UniqueConstraint redundantes sobre PKs compuestas (CompositePrimaryKey ya crea la PK).",
+            "PasoOrientacion y CitaOrientacion usan CompositePrimaryKey('orientacion_id', ...) porque el campo FK se llama orientacion (db_column tarea_id).",
+            "Se añadió db_default (Now(), TRUE/FALSE, 1) para reproducir los DEFAULT de bd.sql ante inserciones SQL directas.",
+            "Tablas creadas con nombre en MAYÚSCULAS entre comillas (\"USUARIO\"): las consultas SQL directas deben citarlas.",
+            "Columnas TIMESTAMP se materializan como timestamptz (USE_TZ=True)."
+          ],
+          "resolved_issues": [
+            "pgadmin en bucle de reinicio por PGADMIN_DEFAULT_EMAIL=admin@riesgoti.local: resuelto en CHG-0003 (admin@riesgoti.com)."
+          ]
+        }
+      },
+      {
+        "version": "v0.2",
+        "file": "back/roadmap/v0.2_modulo_auth_rbac_criptografia_y_catalogos.md",
+        "module_code": "MOD-02-AUTH-RBAC-CRYPTO-AUDIT",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "files_created": [
+            "back/apps/audit/{services,mixins,serializers,views,urls}.py (AuditService.log, AuditLogMixin, EventoAuditoriaOutputSerializer, AuditEventViewSet ReadOnly paginado y filtrable)",
+            "back/apps/accounts/{permissions,services,serializers,views,urls}.py (HasRiesgoTIPermission + SoD, AuthService/UserService/RoleService, Login/Usuario/Rol Input-Output DTOs)",
+            "back/apps/ai_config/{crypto,serializers,services,views,urls}.py (EnvelopeCryptoService AES-256-GCM, AIConfigService versionado, AIConnectionTester)",
+            "back/apps/assets_matrix/{serializers,services,views,urls}.py (Activo/TipoActivo, MatrixService.publish inmutable)",
+            "back/pytest.ini, back/conftest.py (seed_riesgoti una vez por sesión, clientes por rol)",
+            "back/apps/{accounts,ai_config,assets_matrix}/tests/ (49 pruebas)"
+          ],
+          "files_modified": [
+            "back/config/urls.py (enrutamiento /api/v1/ con include por app)",
+            "back/config/settings.py (SIMPLE_JWT USER_ID_CLAIM='usuario_id', DEFAULT_THROTTLE_RATES login=LOGIN_THROTTLE_RATE|10/min, ENUM_NAME_OVERRIDES ConnectionStatusEnum)"
+          ],
+          "endpoints": [
+            "POST /api/v1/auth/login/ (AllowAny, throttle 'login', 401 si credenciales inválidas o usuario inactivo)",
+            "POST /api/v1/auth/refresh/",
+            "GET /api/v1/auth/me/ (perfil + permisos efectivos)",
+            "GET/POST/PATCH /api/v1/admin/users/ (usuario.administrar)",
+            "GET/POST/PUT /api/v1/admin/roles/ (rol.administrar)",
+            "GET /api/v1/admin/permissions/ (rol.administrar, catálogo para el editor de roles)",
+            "GET/PUT /api/v1/admin/ai-config/ (documento.administrar)",
+            "POST /api/v1/admin/ai-config/test-connection/ (documento.administrar)",
+            "GET/POST/PATCH /api/v1/assets/ (lectura: autenticado; escritura: activo.administrar; sin DELETE)",
+            "GET /api/v1/asset-types/ (autenticado)",
+            "GET /api/v1/matrices/active/ (autenticado)",
+            "POST /api/v1/admin/matrices/publish/ (matriz.administrar, 201)",
+            "GET /api/v1/admin/audit-events/ (usuario.administrar, paginado, filtros accion/actor_id/.../desde/hasta)"
+          ],
+          "contracts": {
+            "jwt_claims": "usuario_id (string, serializado por SimpleJWT), nombre_completo, rol_codigo, permisos[]",
+            "login_output": "{access, refresh, user: {usuario_id, correo, nombres, apellidos, nombre_completo, rol_id, rol_codigo, rol_nombre, permisos[]}}",
+            "ai_config_output": "umbral_similitud se emite como number (coerce_to_string=False) para coincidir con aiConfig.schema.ts; versiones_desfasadas = [{id, codigo, version, modelo_embedding}]; incluye actualizada_por_id",
+            "ai_providers": "proveedor_llm IN (OPENAI, GEMINI, HUGGINGFACE_LOCAL); proveedor_embedding IN (OPENAI, GEMINI, SENTENCE_TRANSFORMERS)",
+            "test_connection_output": "llm_status/embedding_status 'ok'|'error' + *_latency_ms, embedding_dimensions y llm_error/embedding_error (secretos enmascarados). Siempre HTTP 200",
+            "publish_matrix_input": "{nombre?, criterios_probabilidad?[5], criterios_impacto?[5], celdas[25]: {probabilidad, impacto, nivel_codigo}}; criterios omitidos se clonan de la matriz activa",
+            "matrix_output": "{id, nombre, version, estado, activa, creada_por_id, creada_por_nombre, creada_en, niveles[], criterios_probabilidad[], criterios_impacto[], celdas[{id, probabilidad, impacto, nivel_id, nivel_codigo, nivel_orden}]}",
+            "activo_output": "{id, tipo_id, tipo_nombre, codigo, nombre, descripcion, criticidad, activo, creado_en, ultima_modificacion}"
+          },
+          "audit_actions": [
+            "INICIO_SESION",
+            "INICIO_SESION_FALLIDO",
+            "CREAR_USUARIO",
+            "ACTUALIZAR_USUARIO",
+            "CAMBIAR_ROL_USUARIO",
+            "ACTIVAR_USUARIO",
+            "DESACTIVAR_USUARIO",
+            "CREAR_ROL",
+            "ACTUALIZAR_ROL",
+            "ACTUALIZAR_CONFIG_IA_RAG",
+            "PROBAR_CONEXION_IA",
+            "CREAR_ACTIVO",
+            "ACTUALIZAR_ACTIVO",
+            "ACTIVAR_ACTIVO",
+            "DESACTIVAR_ACTIVO",
+            "PUBLICAR_CONFIGURACION_MATRIZ"
+          ],
+          "dod_verification": [
+            "docker compose exec backend pytest apps/accounts apps/ai_config apps/assets_matrix -> 49 passed",
+            "AES-256-GCM OK: sk-pro...cdef (roundtrip, IV aleatorio, InvalidTag ante manipulación)",
+            "manage.py check sin issues; manage.py spectacular --validate sin errores ni warnings",
+            "Smoke test con JWT real en http://localhost:8000: me, ai-config, matrices/active, assets, roles, audit-events; ANALISTA -> 403 en admin/users"
+          ],
+          "design_decisions": [
+            "SoD reforzada a nivel de rol: además del bloqueo ADMIN, ningún rol puede combinar permisos administrativos (usuario/rol/matriz/documento/activo.administrar) con riesgo.revisar_agrupacion/evaluar/validar, para impedir eludir INV-05 con un rol personalizado.",
+            "El rol ADMIN no puede desactivarse ni perder usuario.administrar/rol.administrar; los códigos de roles base (REPORTANTE, ANALISTA, ADMIN) son inmutables; no se desactiva un rol con usuarios activos.",
+            "PUT /admin/ai-config/ crea una nueva fila (version_configuracion 'v1.{n}-YYYYMMDDHHMMSS') y desactiva la anterior: el historial queda disponible para TAREA_IA.version_configuracion. API key vacía conserva la cifrada previa.",
+            "HUGGINGFACE_LOCAL se prueba como servidor compatible con la API de OpenAI y exige endpoint_base_llm.",
+            "La auditoría se escribe dentro de la misma transacción que la mutación (services + AuditLogMixin).",
+            "Auditoría consultable con usuario.administrar (no existe un permiso 'auditoria.ver' en el seed)."
+          ],
+          "known_issues": [],
+          "resolved_issues": [
+            "seed_riesgoti reactivaba la matriz v1.0 y la configuración IA v1.0-default al re-ejecutarse (revertía publicaciones y duplicaba la configuración activa): resuelto en CHG-0005."
+          ]
+        }
+      },
+      {
+        "version": "v0.3",
+        "file": "back/roadmap/v0.3_modulo_ingesta_documental_rag_y_faiss.md",
+        "module_code": "MOD-03-DOC-INGESTION-RAG-FAISS",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "library_versions": "pymupdf4llm 2.0 (metadata.page_number base 1), PyMuPDF 2.0, faiss-cpu 1.15.1, sentence-transformers 6.2.0, numpy 1.26.4",
+          "files_created": [
+            "back/apps/documents_rag/chunking.py (StructuredMarkdownPDFChunker: extract_pages + chunk_pages con marcadores de página y add_start_index)",
+            "back/apps/documents_rag/embeddings.py (EmbeddingProviderService: SENTENCE_TRANSFORMERS / OPENAI / GEMINI, lotes de 64, normalize_L2; resolve_embedding_settings)",
+            "back/apps/documents_rag/faiss_store.py (FaissVectorStore: un índice IndexIDMap2(IndexFlatIP) por modelo, escritura atómica con flock, caché por mtime, search_authorized_fragments; constantes FINALIDADES_OPERATIVAS / FINALIDADES_ESTRATEGICAS)",
+            "back/apps/documents_rag/services.py (DocumentIngestionService: upload, process_version, reindex_version, authorize, activate, deactivate, retry, request_reindex)",
+            "back/apps/documents_rag/tasks.py (process_pdf_version_task, reindex_version_task)",
+            "back/apps/documents_rag/serializers.py (DocumentUploadInputSerializer, VersionDocumentoOutputSerializer, DocumentPreviewOutputSerializer)",
+            "back/apps/documents_rag/views.py, urls.py (DocumentVersionViewSet)",
+            "back/apps/documents_rag/seed_documents.py (PDFs semilla d1..d6 generados con PyMuPDF + build_pdf_bytes reutilizable en pruebas)",
+            "back/apps/documents_rag/tests/test_documents_rag.py (25 pruebas)"
+          ],
+          "files_modified": [
+            "back/config/urls.py (include apps.documents_rag.urls)",
+            "back/config/settings.py (MAX_PDF_UPLOAD_BYTES, por defecto 25 MB)",
+            "back/apps/accounts/management/commands/seed_riesgoti.py (invoca seed_documents; Paso 6 del roadmap)",
+            "back/conftest.py (storage aislado en tmp, FakeSentenceTransformer determinista, .delay de Celery parcheado)",
+            "back/pytest.ini (se retira --reuse-db: BD e índice FAISS se siembran desde cero por sesión)",
+            "back/apps/ai_config/tests/test_ai_config.py (versiones_desfasadas ahora incluye las versiones semilla)"
+          ],
+          "endpoints": [
+            "GET /api/v1/admin/document-versions/ (sin paginación; filtros procesamiento/activa/finalidad/documento_id; search)",
+            "GET /api/v1/admin/document-versions/{id}/",
+            "POST /api/v1/admin/document-versions/upload/ (multipart, 201, encola process_pdf_version_task en on_commit)",
+            "GET /api/v1/admin/document-versions/{id}/preview/",
+            "POST /api/v1/admin/document-versions/{id}/authorize/",
+            "POST /api/v1/admin/document-versions/{id}/activate/",
+            "POST /api/v1/admin/document-versions/{id}/deactivate/",
+            "POST /api/v1/admin/document-versions/{id}/retry/ (202, solo ERROR/PENDIENTE_AUTORIZACION nunca autorizadas)",
+            "POST /api/v1/admin/document-versions/{id}/reindex/ (202, re-vectoriza conservando FRAGMENTO_DOCUMENTO.id)"
+          ],
+          "contracts": {
+            "version_output": "{id, documento_id, codigo, titulo, descripcion, version, sha256, procesamiento, finalidad, activa, modelo_embedding, version_segmentacion, error_procesamiento, total_fragmentos, requiere_reindexacion, cargada_por_id, cargada_por_nombre, cargada_en, autorizada_por_id, autorizada_por_nombre, autorizada_en, ultima_modificacion}",
+            "preview_output": "{id, codigo, titulo, version, procesamiento, activa, modelo_embedding, version_segmentacion, error_procesamiento, total_fragmentos, fragmentos[{id, orden, pagina_inicio, pagina_fin, contenido}]}",
+            "upload_input": "multipart {codigo (normalizado a MAYÚSCULAS), titulo >= 5, descripcion?, version, finalidad OPERATIVA|ESTRATEGICA|AMBAS, archivo .pdf con firma %PDF- y <= MAX_PDF_UPLOAD_BYTES}",
+            "fragment_prefix": "[Documento: {codigo} {version normalizada con prefijo v} | Sección: {H1 > H2 > H3 | General}]",
+            "version_segmentacion": "md-v1-cs{chunk_size}-co{chunk_overlap} (chunk_size en tokens ~ 4 caracteres)",
+            "retriever": "FaissVectorStore.search_authorized_fragments(query_text, finalidad_permitida, config=None) -> [RetrievedFragment(fragmento, score)]; filtra activa, AUTORIZADO, modelo_embedding vigente, finalidad, score >= umbral_similitud, top_k"
+          },
+          "audit_actions": [
+            "CARGAR_VERSION_DOCUMENTO",
+            "AUTORIZAR_ACTIVAR_VERSION_DOCUMENTO",
+            "ACTIVAR_VERSION_DOCUMENTO",
+            "DESACTIVAR_VERSION_DOCUMENTO",
+            "REPROCESAR_VERSION_DOCUMENTO",
+            "REINDEXAR_VERSION_DOCUMENTO"
+          ],
+          "seed_documents": "d1 POL-CONT-01 v2.1 AUTORIZADO (15 fragmentos, cita p12 y p14-15), d2 PRO-ACC-01 v1.4 AUTORIZADO (18; p7, p9, p18), d3 LIN-RESP-01 v1.0 PENDIENTE_AUTORIZACION, d4 MAN-EST-01 v0.9 AUTORIZADO inactiva, d5 GUI-CLAS-01 v1.0 PROCESANDO (lo procesa celery_worker), d6 PLN-INC-01 v3.0 ERROR (PDF sin capa de texto). Idempotente por DOCUMENTO.codigo.",
+          "dod_verification": [
+            "docker compose exec backend pytest -> 76 passed (25 nuevas en documents_rag)",
+            "manage.py spectacular --validate sin errores ni warnings",
+            "seed_riesgoti real en desarrollo: modelo paraphrase-multilingual-mpnet-base-v2 descargado en el volumen huggingface_cache; d5 procesado por celery_worker (2 fragmentos)",
+            "Retriever real: top-1 correcto para VPN/MFA (0.445, PRO-ACC-01 p7), ERP lento (0.395, POL-CONT-01 p12) y correo sospechoso (0.275, PRO-ACC-01 p18)"
+          ],
+          "design_decisions": [
+            "Chunker: las páginas se unen con marcadores <<<RIESGOTI_PAGE:n>>> que atraviesan MarkdownHeaderTextSplitter; con add_start_index del RecursiveCharacterTextSplitter se calcula pagina_inicio/pagina_fin por offsets reales (un fragmento puede cruzar páginas). Sustituye la heurística del roadmap que asignaba la página previa por coincidencia de jerarquía.",
+            "INV-04: process_version rechaza re-segmentar versiones con fragmentos citados; retry solo para versiones nunca autorizadas; el cambio de modelo se resuelve con reindex, que conserva los IDs de FRAGMENTO_DOCUMENTO.",
+            "Embeddings calculados antes de abrir la transacción; fragmentos + FAISS + estado se confirman juntos; los vectores antiguos se retiran tras el commit (vectores huérfanos son inocuos porque el retriever filtra por IDs elegibles).",
+            "Una sola versión activa por DOCUMENTO: authorize y activate desactivan las hermanas.",
+            "Si el proveedor de embeddings coincide con el LLM y no tiene llave propia, se reutiliza api_key_llm.",
+            "El cargador de SentenceTransformer de ai_config/services.py (prueba de conexión) se mantiene separado del de embeddings.py para no tocar MOD-02."
+          ],
+          "known_issues": [],
+          "resolved_issues": [
+            "umbral_similitud semilla 0.720 demasiado alto para paraphrase-multilingual-mpnet-base-v2 (similitudes relevantes 0.27-0.47): reducido a 0.400 en CHG-0006."
+          ]
+        }
+      },
+      {
+        "version": "v0.4",
+        "file": "back/roadmap/v0.4_modulo_incidencias_evidencias_y_atencion_n2.md",
+        "module_code": "MOD-04-INCIDENTS-N2-ATTENTION",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "files_created": [
+            "back/apps/incidents/services.py (IncidentService: create_incident_transactional, register_orientation_feedback, start_attention, update_attention, transition; current_status_subquery; latest_task; dispatch_ai_tasks)",
+            "back/apps/incidents/serializers.py (IncidentCreateInputSerializer, OrientationFeedbackInputSerializer, HumanAttentionInputSerializer; IncidentListOutputSerializer, IncidentListDetailOutputSerializer, OperationalGuidanceOutputSerializer, AtencionIncidenciaOutputSerializer)",
+            "back/apps/incidents/views.py, urls.py (IncidentViewSet, IncidentFilter, IncidentOrderingFilter)",
+            "back/apps/incidents/seed_incidents.py (17 incidencias del prototipo con fechas relativas)",
+            "back/apps/incidents/tests/test_incidents.py (25 pruebas)"
+          ],
+          "files_modified": [
+            "back/config/urls.py (include apps.incidents.urls)",
+            "back/config/settings.py (MAX_EVIDENCE_BYTES 10 MB, MAX_EVIDENCES_PER_INCIDENT 5)",
+            "back/apps/accounts/management/commands/seed_riesgoti.py (invoca seed_incidents; Paso 5 del roadmap)"
+          ],
+          "endpoints": [
+            "GET /api/v1/incidents/ (sin paginación; filtros estado=A,B, activo_reportado_id, reportante_id, dias, q=INC-0001|texto, bandeja=atencion [exige atencion.ver_cola, orden ascendente]; ordering)",
+            "POST /api/v1/incidents/ (incidencia.crear; multipart o JSON; 201 con el detalle completo)",
+            "GET /api/v1/incidents/{id}/ (detalle: evidencias, historial, atencion, tareas_ia, riesgos_vinculados)",
+            "GET /api/v1/incidents/{id}/operational-guidance/",
+            "POST /api/v1/incidents/{id}/orientation-feedback/ (incidencia.cerrar_propias_por_feedback, solo el reportante dueño)",
+            "POST /api/v1/incidents/{id}/start-attention/ (atencion.atender; idempotente para el mismo analista)",
+            "PATCH /api/v1/incidents/{id}/attention/ (atencion.atender; solo el analista asignado)",
+            "GET /api/v1/incidents/{id}/evidences/{evidencia_id}/download/"
+          ],
+          "contracts": {
+            "visibility": "Con incidencia.ver_todas (ANALISTA, ADMIN) se ven todas; solo con incidencia.ver_propias el queryset se limita al reportante (ajenas -> 404).",
+            "list_output": "{id, referencia INC-0000, titulo, descripcion, activo_reportado_id, activo_nombre (o activo_texto), activo_texto, reportante_id, reportante_nombre, estado_actual, registrada_en, total_evidencias, orientacion_tipo, orientacion_resultado, tarea_operativa_estado, tarea_estrategica_estado, analista_nombre}",
+            "detail_output": "list_output + {evidencias[{id, nombre_original, tipo_mime, bytes, sha256, creada_en}], historial[{id, estado, actor_id, actor_nombre, motivo, ocurrido_en}], atencion{incidencia_id, analista_id, analista_nombre, iniciada_en, acciones, nota_resolucion, cerrada_en}|null, tareas_ia{operativa, estrategica: {id, rama, intento, estado, error_codigo, error_detalle, creada_en, terminada_en}|null}, riesgos_vinculados[{riesgo_id, riesgo_codigo, version_id, version_numero, estado_vinculo}]}",
+            "create_output": "Igual al detail_output. DESVIACIÓN: el roadmap mostraba tareas_ia {operativa_id, estrategica_id}; los IDs viajan en tareas_ia.operativa.id / tareas_ia.estrategica.id (el frontend no consumía la forma anterior).",
+            "guidance_output": "{incidencia_id, estado_incidencia, tarea_ia{id, estado, error_codigo, error_detalle}|null, orientacion{tipo, resumen, advertencia, creada_en, pasos[{orden, instruccion}], citas[{numero, fragmento_id, documento_codigo, documento_titulo, version, pagina_inicio, pagina_fin, contenido}], respuesta{resultado, respondida_en}|null}|null}",
+            "evidence_rules": "Extensiones png/jpg/jpeg/pdf/log/txt; firma binaria verificada (PNG, JPEG, %PDF-); .log/.txt sin bytes nulos; MIME derivado de la extensión (se ignora el del cliente); <= 10 MB; máximo 5; clave inc_{id}/{sha256[:12]}_{nombre}",
+            "state_machine": "REGISTRADA -> EN_ANALISIS -> (feedback FUNCIONO) CERRADA | (NO_FUNCIONO / derivación automática) PENDIENTE_ATENCION_HUMANA -> EN_ATENCION -> CERRADA. Feedback solo en EN_ANALISIS con orientación SUGERENCIA y sin respuesta previa. start-attention desde EN_ANALISIS o PENDIENTE_ATENCION_HUMANA."
+          },
+          "audit_actions": [
+            "REGISTRAR_INCIDENCIA",
+            "CONFIRMAR_ORIENTACION_OPERATIVA",
+            "INICIAR_ATENCION_HUMANA",
+            "REGISTRAR_AVANCE_ATENCION",
+            "CERRAR_ATENCION_HUMANA"
+          ],
+          "seed_incidents": "17 incidencias (ids 1..17 en base limpia): CERRADA 10, PENDIENTE_ATENCION_HUMANA 4 (4, 7, 10, 15), EN_ATENCION 2 (5, 12), EN_ANALISIS 1 (16). INC-0015 con TAREA_IA estratégica en ERROR (PROVEEDOR_TIMEOUT); INC-0016 con ambas ramas PROCESANDO. Evidencias reales en disco (captura-erp.png 284000 B, error-timeout.log 12400 B). Solo se siembra si INCIDENCIA está vacía. Las orientaciones semilla no tienen CITA_ORIENTACION (el prototipo no las define). Análisis estratégicos y vínculos con riesgos pendientes para v0.5/v0.6 (identificar incidencias por titulo o clave_idempotencia inc-{id}-est-v1).",
+          "dod_verification": [
+            "docker compose exec backend pytest -> 101 passed (25 nuevas en incidents)",
+            "manage.py spectacular --validate sin errores ni warnings",
+            "Latencia real de POST /api/v1/incidents/ con evidencia: 62-144 ms (objetivo < 300 ms)",
+            "Smoke test con JWT reales: cola N2 en orden ascendente, guía de INC-0002, 404 a reportante ajeno, descarga íntegra de evidencia de 284 KB, búsqueda por referencia INC-0015"
+          ],
+          "design_decisions": [
+            "dispatch_ai_tasks importa apps.risks.tasks de forma protegida: mientras v0.5 no exista, las TAREA_IA quedan en PENDIENTE (no se pierden mensajes en Redis).",
+            "El analista puede tomar casos en EN_ANALISIS además de PENDIENTE_ATENCION_HUMANA, para que ninguna incidencia quede huérfana si la IA no responde (INV-01).",
+            "Solo el analista asignado edita la atención; otro analista recibe 400 al intentar tomarla y 403 al editarla.",
+            "Las evidencias se copian a un temporal fuera de la transacción y se mueven con os.replace dentro de ella; ante cualquier fallo se eliminan temporales y archivos movidos.",
+            "Actor de transiciones automáticas: HISTORIAL_ESTADO_INCIDENCIA.actor_id es NOT NULL; para derivaciones automáticas se usa el reportante (TAREA_IA.solicitada_por) con un motivo explícito. Los workers de v0.5 deben seguir esta convención.",
+            "riesgos_vinculados se expone desde ya (VERSION_INCIDENCIA vía ANALISIS_INCIDENCIA) y devuelve [] hasta v0.5/v0.6."
+          ],
+          "pending_for_v0_5": [
+            "Implementar apps.risks.tasks.run_operational_rag_task y run_strategic_risk_task (nombres esperados por dispatch_ai_tasks).",
+            "Re-encolar las TAREA_IA en PENDIENTE creadas antes de que existieran los workers (comando de gestión o tarea de arranque).",
+            "POST /api/v1/incidents/{id}/retry-strategic/ (asignado a v0.5 por su roadmap).",
+            "Reiniciar celery_worker tras crear apps/risks/tasks.py."
+          ],
+          "known_issues": []
+        }
+      },
+      {
+        "version": "v0.5",
+        "file": "back/roadmap/v0.5_modulo_workers_celery_rag_operativo_y_estrategico.md",
+        "module_code": "MOD-05-CELERY-WORKERS-RAG-STRATEGIC",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "files_created": [
+            "back/apps/risks/llm_schemas.py (OperationalStepOutput, OperationalGuidanceLLMOutput, StrategicExtractionLLMOutput, NO_DETERMINADO)",
+            "back/apps/risks/llm_client.py (LLMClient: GEMINI response_schema, OPENAI json_schema, HUGGINGFACE_LOCAL json_object vía endpoint compatible; modo DETERMINISTA_LOCAL sin API key)",
+            "back/apps/risks/services.py (OperationalRAGService, StrategicRiskAnalysisService, StrategicRetryService, TaskLifecycle, escalate_if_analyzing, verificación de citas)",
+            "back/apps/risks/tasks.py (risks.run_operational_rag, risks.run_strategic_risk; acks_late, soft_time_limit 180 s)",
+            "back/apps/risks/serializers.py (RetryStrategicAnalysisOutputSerializer)",
+            "back/apps/risks/management/commands/requeue_ai_tasks.py (--stale-minutes, --dry-run)",
+            "back/apps/risks/tests/test_celery_workers.py (19 pruebas)"
+          ],
+          "files_modified": [
+            "back/apps/incidents/views.py (acción retry_strategic, permiso atencion.atender)",
+            "back/apps/incidents/seed_incidents.py (INC-0016: tareas PENDIENTE encoladas tras el commit en lugar de PROCESANDO fijo)",
+            "back/config/settings.py (LLM_TIMEOUT_SECONDS 60, RISK_GROUPING_THRESHOLD 0.75)",
+            "back/conftest.py (parchea .delay de los workers de risks)",
+            "back/apps/incidents/tests/test_incidents.py (renombrada una prueba cuyo nombre asumía que no había workers)"
+          ],
+          "celery_tasks": [
+            "risks.run_operational_rag",
+            "risks.run_strategic_risk",
+            "documents_rag.process_pdf_version",
+            "documents_rag.reindex_version"
+          ],
+          "endpoints": [
+            "POST /api/v1/incidents/{id}/retry-strategic/ (atencion.atender; 202; solo si la última TAREA_IA estratégica está en ERROR; crea intento n+1 con clave inc-{id}-est-v{n})"
+          ],
+          "contracts": {
+            "tarea_ia_proveedor": "TAREA_IA.proveedor/modelo registran el proveedor realmente usado: GEMINI | OPENAI | HUGGINGFACE_LOCAL | DETERMINISTA_LOCAL (reglas-extractivas-v1 / deteccion-sensible-v1).",
+            "operational_flow": "SENSITIVE_RE (patrones del prototipo + suplant/otro país) -> SENSIBLE sin consultar documentos y derivación a N2. Sin fragmentos sobre umbral -> SIN_RESPALDO sin invocar al LLM y derivación. SUGERENCIA sin ninguna cita verificable -> SIN_RESPALDO. SUGERENCIA válida deja la incidencia en EN_ANALISIS esperando feedback.",
+            "citations": "Solo números 1..k de los fragmentos recuperados (declarados o referenciados como [n]); las referencias inválidas se eliminan del texto; CITA_*.numero = n del contexto.",
+            "strategic_flow": "Extracción ISO 27005 (NO_DETERMINADO si no hay sustento) -> ANALISIS_INCIDENCIA -> similitud coseno contra la huella (activo, amenaza, consecuencia, reporte) de los análisis vinculados no RETIRADOS de otras incidencias, bajo pg_advisory_xact_lock(270050). >= RISK_GROUPING_THRESHOLD: AGRUPACION en la última versión sin DECISION_RIESGO o RECURRENCIA_NUEVA_VERSION (numero+1, origen IA) si ya fue decidida. Si no: NUEVO_RIESGO con codigo RSG-{id:04d} y vínculo SUGERIDA similitud 1.0000 'Incidencia de origen.'. CITA_VERSION_RIESGO solo en versiones nuevas.",
+            "version_riesgo_ia": "creada_por = TAREA_IA.solicitada_por (reportante, o el analista que pidió el reintento); origen 'IA'; origen_recomendacion NORMATIVA_INTERNA | IA | null.",
+            "escalation_guard": "La rama operativa solo deriva a PENDIENTE_ATENCION_HUMANA si la incidencia sigue en REGISTRADA/EN_ANALISIS (no pisa EN_ATENCION ni CERRADA). La rama estratégica nunca cambia el estado operativo (INV-02).",
+            "audit": "ANALIZAR_RIESGO_INCIDENCIA (actor nulo, sistema) y REINTENTAR_ANALISIS_ESTRATEGICO."
+          },
+          "dod_verification": [
+            "docker compose exec backend pytest -> 120 passed (19 nuevas en risks)",
+            "DoD roadmap: ninguna cita apunta a fragmentos no autorizados/inactivos ni de finalidad no permitida; FUNCIONO no detiene la rama estratégica; SIN_RESPALDO no invoca al LLM y deriva a N2",
+            "manage.py spectacular --validate sin errores ni warnings",
+            "E2E con Celery real: INC-0018 (VPN) procesada en ~10 s; operativa SIN_RESPALDO por umbral 0.72 y derivación automática; estratégica NUEVO_RIESGO RSG-0001. Datos de prueba eliminados después y secuencias reajustadas.",
+            "Simulación con modelo real y umbral 0.40 (transacción revertida): VPN -> SUGERENCIA citando PRO-ACC-01 p7 (MFA); ERP -> SUGERENCIA citando POL-CONT-01 p12 y riesgo 'Interrupción o degradación del servicio en ERP Contable' con recomendación citada."
+          ],
+          "bugs_found_and_fixed": [
+            "select_for_update sobre LEFT JOIN anulable (activo_reportado) -> select_for_update(of=('self',)).",
+            "first_sentence devolvía el número del encabezado ('7.') con fragmentos reales -> omite encabezados Markdown y exige oraciones de 20+ caracteres.",
+            "Taxonomía determinista sin regla de acceso remoto (VPN quedaba NO_DETERMINADO) -> regla 'Indisponibilidad del acceso remoto'."
+          ],
+          "dev_db_state": "17 incidencias semilla; 0 riesgos; TAREA_IA 31/32 de INC-0016 en PENDIENTE sin encolar a propósito (para que v0.6 siembre RSG-0001..0005 primero). Tras la v0.6 ejecutar: docker compose exec backend python manage.py requeue_ai_tasks",
+          "gemini_validation": "CHG-0006: gemini-2.5-flash validado en real vía Celery (8 TAREA_IA, proveedor GEMINI, Structured Outputs sin errores). VPN -> SUGERENCIA citando PRO-ACC-01 p7; correo sospechoso en inglés -> SENSIBLE por clasificación del LLM con cita PRO-ACC-01 p18; proyector -> SIN_RESPALDO correcto; ERP -> SIN_RESPALDO por caso límite (0.39996 < 0.400).",
+          "known_issues": [
+            "umbral_similitud = 0.400 (CHG-0006) deja en el límite consultas de rendimiento del ERP (0.39996); evaluar 0.35 si se repiten casos límite con el corpus real.",
+            "Gemini puede inferir vectores no explícitos en el reporte (p. ej. vulnerabilidad del caso VPN); la revisión del analista en v0.6 es el control previsto.",
+            "No existe forma vía API de retirar una API key (vacía = conserva la anterior); la configuración activa v1.1-20261022031119 contiene la clave de pruebas de Gemini del usuario, que será revocada.",
+            "La calidad de la orientación y del análisis en modo DETERMINISTA_LOCAL es extractiva y limitada (amenazas por reglas, vulnerabilidad siempre NO_DETERMINADO); con una API key de LLM se usan Structured Outputs reales.",
+            "find_best_match vectoriza en cada análisis todas las huellas vinculadas (O(n)); suficiente para el volumen actual, candidato a índice FAISS dedicado si crece."
+          ]
+        }
+      },
+      {
+        "version": "v0.6",
+        "file": "back/roadmap/v0.6_modulo_evaluacion_matriz_decisiones_iso_y_dashboard.md",
+        "module_code": "MOD-06-RISK-EVALUATION-DECISIONS-DASHBOARD",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "files_created": [
+            "back/apps/risks/views.py (RiskVersionViewSet, RiskVersionFilter, RiskDashboardAPIView)",
+            "back/apps/risks/urls.py",
+            "back/apps/risks/seed_risks.py (RSG-0001..0005 del prototipo)",
+            "back/apps/risks/tests/test_risk_decisions_and_sod.py (21 pruebas)"
+          ],
+          "files_modified": [
+            "back/apps/risks/serializers.py (DTOs RemoveIncidentFromGroup/RestoreIncidentToGroup/ConfirmGrouping/RiskEvaluate/RiskDecision; mappers RiskVersionListDetail, Evaluacion, Decision, CitaVersionRiesgo, VersionIncidencia, RiskDashboard, RegistroRiesgo)",
+            "back/apps/risks/services.py (risk_version_queryset, RiskGovernanceDecisionService, RiskDashboardAggregationService)",
+            "back/config/urls.py (include apps.risks.urls)",
+            "back/apps/accounts/management/commands/seed_riesgoti.py (invoca seed_risks; Paso 5 del roadmap)",
+            "back/apps/risks/tests/test_celery_workers.py (fixture sin_riesgos_semilla para aislar las pruebas de agrupación de las semillas)"
+          ],
+          "endpoints": [
+            "GET /api/v1/risk-versions/ (riesgo.consultar; sin paginación; filtros bandeja=nuevas|pendientes_revision|rechazadas|decididas, estado=A,B, riesgo_id, origen, q; ordering)",
+            "GET /api/v1/risk-versions/{id}/",
+            "PATCH /api/v1/risk-versions/{id}/incidents/{analisis_id}/remove/ (riesgo.revisar_agrupacion)",
+            "PATCH /api/v1/risk-versions/{id}/incidents/{analisis_id}/restore/ (riesgo.revisar_agrupacion; adicional al roadmap)",
+            "POST /api/v1/risk-versions/{id}/confirm-grouping/ (riesgo.revisar_agrupacion)",
+            "POST /api/v1/risk-versions/{id}/evaluate/ (riesgo.evaluar)",
+            "POST /api/v1/risk-versions/{id}/decision/ (riesgo.validar; 200, o 201 con la nueva versión si CORREGIDA)",
+            "GET /api/v1/risks/dashboard/ (riesgo.consultar)"
+          ],
+          "contracts": {
+            "version_output": "{id, riesgo_id, riesgo_codigo, numero, origen, estado (PENDIENTE|VALIDADA|CORREGIDA|RECHAZADA derivado de DECISION_RIESGO), posible_recurrencia, version_anterior_id, titulo, descripcion, amenaza, vulnerabilidad, consecuencia, recomendacion, origen_recomendacion, creada_por_id, creada_por_nombre, creada_en, activo_identificado, activo_confirmado_id, activo_confirmado_nombre, activo_confirmado_criticidad, agrupacion_confirmada, agrupacion_confirmada_por_nombre, agrupacion_confirmada_en, tiene_citas_estrategicas, citas[{numero, fragmento_id, documento_codigo, documento_titulo, version, documento_activo, pagina_inicio, pagina_fin, contenido}], incidencias[{analisis_id, incidencia_id, referencia, titulo, registrada_en, estado_incidencia, activo_nombre, estado, similitud (number), motivo_similitud, extracto_reporte, revisada_por_nombre, revisada_en, motivo_retiro}], total_incidencias_incluidas, evaluacion|null, decision|null}",
+            "evaluation_output": "{version_id, celda_id, probabilidad, impacto, nivel_codigo, nivel_orden, matriz_id, matriz_nombre, matriz_version, justificacion, evaluador_id, evaluador_nombre, evaluada_en}",
+            "decision_input": "{accion, observacion (>=10 para RECHAZADA/CORREGIDA), justificacion_sin_fuentes (>=15 si VALIDADA sin citas), titulo/descripcion/amenaza/vulnerabilidad/consecuencia/recomendacion (CORREGIDA: al menos uno)}",
+            "dashboard_output": "{generado_en, total_riesgos, total_riesgos_vigentes, riesgos_vigentes_por_nivel[{nivel_codigo, orden, total}], propuestas_pendientes, propuestas_nuevas_agrupaciones, propuestas_pendientes_revision, propuestas_posible_recurrencia, versiones_rechazadas, incidencias_por_estado{estado: n}, incidencias_por_activo[{activo_id, activo_nombre, total}], serie_incidencias[30 x {fecha, total}], registro_riesgos[{riesgo_id, riesgo_codigo, version_vigente_id, version_vigente_numero, titulo, activo_confirmado_id, activo_confirmado_nombre, nivel_codigo, probabilidad, impacto, validada_en, total_incidencias, propuesta_pendiente_id, propuesta_pendiente_numero}]}"
+          },
+          "business_rules": [
+            "Versión con DECISION_RIESGO es inmutable: remove/restore/confirm/evaluate/decision devuelven 400.",
+            "Retirar o restaurar un vínculo tras confirmar la agrupación reinicia la confirmación (debe reconfirmarse).",
+            "confirm-grouping exige al menos una incidencia incluida y justificacion_cambio_activo >= 10 si el activo difiere de los reportados (se registra en la auditoría; no hay columna en bd.sql).",
+            "evaluate resuelve la celda en la matriz activa y permite reevaluar mientras la versión esté pendiente (actualiza celda y evaluada_en).",
+            "VALIDADA exige activo + agrupación confirmados, evaluación con justificación >= 15 y citas o justificacion_sin_fuentes >= 15.",
+            "CORREGIDA clona VERSION_RIESGO numero = max + 1, origen ANALISTA, con vínculos, citas, activo y confirmación de agrupación; la evaluación debe hacerse de nuevo."
+          ],
+          "audit_actions": [
+            "RETIRAR_INCIDENCIA_AGRUPACION",
+            "RESTAURAR_INCIDENCIA_AGRUPACION",
+            "CONFIRMAR_AGRUPACION_RIESGO",
+            "EVALUAR_RIESGO",
+            "DECIDIR_VERSION_RIESGO"
+          ],
+          "seed_risks": "RSG-0001 v1 PENDIENTE (ERP, 9 vínculos SUGERIDA incl. INC-0008 impresora como falso positivo para el flujo QA #4 — desviación: el prototipo la tenía retirada; citas POL-CONT-01 p12 y p14-15). RSG-0002 v1 VALIDADA (P4xI4 CRITICO, cita PRO-ACC-01 p18) + v2 PENDIENTE (posible recurrencia, INC-0010). RSG-0003 v1 CORREGIDA (IA) + v2 VALIDADA origen ANALISTA (P3xI5 CRITICO, citas PRO-ACC-01 p7 y p9). RSG-0004 v1 RECHAZADA (cita a MAN-EST-01 inactivo preservada, INV-04). RSG-0005 v1 PENDIENTE sin citas. Solo se siembra si RIESGO está vacío.",
+          "dod_verification": [
+            "docker compose exec backend pytest -> 141 passed (2 ejecuciones consecutivas)",
+            "DoD 1: ADMIN -> 403 en decision/evaluate/confirm-grouping/remove (verificado también con JWT real); 200 en lectura",
+            "DoD 2: VALIDADA sin citas ni justificacion_sin_fuentes -> 400",
+            "DoD 3: publicar nueva CONFIGURACION_MATRIZ no altera celda_id de EVALUACION_RIESGO (incluidas las semillas)",
+            "DoD 4: el tablero cuenta solo la última versión VALIDADA por RIESGO (RSG-0002 v1 con v2 pendiente y RSG-0003 v2 -> 2 vigentes, sin duplicados tras revalidar)",
+            "manage.py spectacular --validate sin errores ni warnings",
+            "Desarrollo: seed de riesgos aplicado (RSG-0001..0005); requeue_ai_tasks procesó INC-0016 con Gemini real: estratégica -> RSG-0006; operativa -> 503 UNAVAILABLE del proveedor (TAREA_IA ERROR)"
+          ],
+          "resolved_issues": [
+            "Estado actual de incidencia invertido por reloj no monotónico del contenedor (2 retrocesos de 1-2 ms en 45 s) y por historial semilla fechado en el futuro (INC-0015/0016), que dejaba INC-0016 en EN_ANALISIS con la tarea operativa en ERROR: resuelto en CHG-0007 (ocurrido_en monotónico en IncidentService.transition, ago() acotado al pasado, datos de desarrollo reparados; 144 pruebas en 5 ejecuciones consecutivas)."
+          ],
+          "known_issues": [
+            "Errores transitorios del proveedor LLM (503/429) no se reintentan: la orientación se pierde y el caso se deriva a N2. Mejora propuesta: reintentos con backoff solo para errores transitorios.",
+            "HasRiesgoTIPermission (v0.2) niega al ADMIN cualquier conjunto de permisos requeridos que contenga un permiso SoD aunque posea otro permiso válido del conjunto; por eso la lectura de risk-versions exige solo riesgo.consultar."
+          ]
+        }
+      }
+    ],
+    "frontend_roadmaps": [
+      {
+        "version": "v0.0",
+        "file": "front/roadmap/v0.0_setup_inicial_y_conexion_brain.md",
+        "module_code": "MOD-00-FRONTEND-SETUP",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "package_manager": "pnpm 12.14.0 (Node 24.22.1)",
+          "dependencies_installed": [
+            "@hookform/resolvers 5.9.2",
+            "@reduxjs/toolkit 2.13.0",
+            "clsx 2.1.1",
+            "lucide-react 1.61.0",
+            "react-dropzone 14.4.1",
+            "react-hook-form 7.90.0",
+            "react-markdown 10.1.0",
+            "react-redux 9.3.0",
+            "rehype-sanitize 6.0.0",
+            "remark-gfm 4.0.1",
+            "sonner 2.0.8",
+            "tailwind-merge 3.7.0",
+            "zod 3.25.76",
+            "tailwindcss 4.3.3 (dev)",
+            "@tailwindcss/vite 4.3.3 (dev)",
+            "@tailwindcss/typography 0.5.20 (dev)"
+          ],
+          "files_created": [
+            "front/.env.example",
+            "front/.env",
+            "front/src/vite-env.d.ts",
+            "front/src/lib/utils.ts",
+            "front/src/lib/format.ts",
+            "front/src/lib/labels.ts",
+            "front/src/types/api.types.ts",
+            "front/src/types/domain.types.ts",
+            "front/src/components/ui.tsx",
+            "front/src/components/seo/PageMeta.tsx",
+            "front/src/pages/SetupStatusPage.tsx",
+            "front/src/{app/api,mappers,hooks,features/auth,features/ui,schemas}/.gitkeep",
+            "front/skills-lock.json"
+          ],
+          "files_updated": [
+            "front/package.json (name riesgoti-frontend, version 0.1.0)",
+            "front/vite.config.ts (@tailwindcss/vite + alias @/)",
+            "front/tsconfig.app.json (paths @/*)",
+            "front/index.html (lang es, meta description)",
+            "front/src/index.css (tokens @theme migrados de figma/src/index.css + @plugin typography)",
+            "front/src/App.tsx",
+            "front/.gitignore (.env)"
+          ],
+          "files_removed": [
+            "front/src/App.css",
+            "front/src/assets/*",
+            "front/public/icons.svg"
+          ],
+          "domain_types_exposed": [
+            "RoleCode",
+            "PermissionCode",
+            "IncidentStatus",
+            "DocumentProcessingStatus",
+            "DocumentPurpose",
+            "RiskDecisionAction",
+            "RiskValidationStatus",
+            "RiskLevelCode",
+            "AssetCriticality",
+            "SessionUser"
+          ],
+          "api_dtos_exposed": [
+            "HealthcheckDto (GET /api/v1/health/)",
+            "LoginRequestDto / LoginResponseDto / UsuarioSesionDto (POST /api/v1/auth/login/, GET /api/v1/auth/me/)",
+            "PaginatedResponseDto<T>",
+            "DrfErrorDto"
+          ],
+          "ui_components_migrated": [
+            "Logo",
+            "Avatar",
+            "Button",
+            "IconButton",
+            "Card",
+            "CardHeader",
+            "PageHeader",
+            "Field",
+            "Select",
+            "Switch",
+            "StatusBadge",
+            "ValidationBadge",
+            "RiskLevelBadge",
+            "CriticalityBadge",
+            "AIBadge",
+            "Mono",
+            "KV",
+            "EmptyState",
+            "ErrorState",
+            "Skeleton",
+            "Tabs",
+            "Chips",
+            "Pager",
+            "Dialog",
+            "Sheet",
+            "SourceCard",
+            "AnalysisProgress",
+            "MarkdownViewer"
+          ],
+          "env": {
+            "VITE_API_BASE_URL": "http://localhost:8000/api/v1"
+          },
+          "verification": {
+            "tsc -b": "OK",
+            "pnpm run build": "OK (vite 8.3.4, 2197 módulos)",
+            "pnpm run lint": "OK (0 problemas)"
+          },
+          "relations": [
+            {
+              "from": "MOD-00-FRONTEND-SETUP",
+              "type": "ENABLES",
+              "to": "MOD-07-FRONT-CORE-RTK-ZOD-AUTH"
+            }
+          ],
+          "deviations": [
+            "Se conservan las versiones más recientes ya presentes en el scaffold de front/ (TypeScript ~6.0.3, Vite 8.3.4, @types/node 24) en lugar de las del roadmap (~5.7 / 22), sin downgrade.",
+            "Se agrega @tailwindcss/typography (no listado en el roadmap) porque MarkdownViewer usa las clases prose; sin el plugin no tendrían efecto.",
+            "Helpers no visuales de figma/src/ui.tsx (cx, ref, fmtDate, fmtDT, ageOf, fmtSize, ND, inputCls, *_LABEL) se trasladan a src/lib/utils.ts, src/lib/format.ts y src/lib/labels.ts para cumplir react-refresh/only-export-components; cx se sustituye por cn().",
+            "Badges reciben códigos de dominio (BAJO/MEDIO/ALTO/CRITICO; RiskValidationStatus) en lugar de etiquetas en español del prototipo; Toasts propio se descarta en favor de sonner.",
+            "Se crea src/pages/SetupStatusPage.tsx como vista provisional (PageMeta + main + h1 único) hasta que v0.1 incorpore el enrutado.",
+            "npx autoskills incorporó 2 skills nuevas (react-hook-form, zod) unificadas en .agents/skills/ y .claude/skills/."
+          ]
+        }
+      },
+      {
+        "version": "v0.1",
+        "file": "front/roadmap/v0.1_modulo_fundacion_rtk_query_zod_y_rbac.md",
+        "module_code": "MOD-07-FRONT-CORE-RTK-ZOD-AUTH",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ],
+          "files_created": [
+            "front/src/app/store.ts",
+            "front/src/app/hooks.ts",
+            "front/src/app/api/baseApi.ts",
+            "front/src/app/api/authApi.ts",
+            "front/src/app/api/adminApi.ts",
+            "front/src/app/api/incidentsApi.ts",
+            "front/src/app/api/risksApi.ts",
+            "front/src/features/auth/authSlice.ts",
+            "front/src/features/auth/RequirePermission.tsx",
+            "front/src/features/ui/uiSlice.ts",
+            "front/src/schemas/auth.schema.ts",
+            "front/src/schemas/aiConfig.schema.ts",
+            "front/src/schemas/document.schema.ts",
+            "front/src/schemas/incident.schema.ts",
+            "front/src/schemas/riskEvaluation.schema.ts",
+            "front/src/mappers/common.mapper.ts",
+            "front/src/mappers/auth.mapper.ts",
+            "front/src/mappers/admin.mapper.ts",
+            "front/src/mappers/incidents.mapper.ts",
+            "front/src/mappers/risks.mapper.ts",
+            "front/src/hooks/useAuthSession.ts",
+            "front/src/hooks/useCitationDrawer.ts",
+            "front/src/components/CitationDrawer.tsx"
+          ],
+          "files_updated": [
+            "front/src/main.tsx (Provider store)",
+            "front/src/types/api.types.ts (DTOs completos espejo de los OutputSerializers de MOD-02..06)",
+            "front/src/types/domain.types.ts (modelos de dominio camelCase)",
+            "front/src/components/ui.tsx (IconButton acepta ref)"
+          ],
+          "rtk_query_tags": [
+            "AIConfig",
+            "DocumentVersion",
+            "Incident",
+            "OperationalGuidance",
+            "RiskVersion",
+            "RiskDashboard",
+            "MatrixConfig",
+            "Asset",
+            "User"
+          ],
+          "zod_schemas": [
+            "loginFormSchema",
+            "aiConfigFormSchema",
+            "documentUploadSchema",
+            "incidentFormSchema",
+            "orientationFeedbackSchema",
+            "humanAttentionSchema",
+            "removeIncidentFromGroupSchema",
+            "confirmGroupingSchema",
+            "riskEvaluateSchema",
+            "riskDecisionSchema"
+          ],
+          "endpoints_consumed": [
+            "POST auth/login/ (AllowAny)",
+            "POST auth/refresh/ (renovación automática ante 401 con mutex)",
+            "GET auth/me/ (IsAuthenticated)",
+            "GET|PUT admin/ai-config/ (documento.administrar)",
+            "POST admin/ai-config/test-connection/ (documento.administrar)",
+            "GET admin/document-versions/",
+            "POST admin/document-versions/upload/ (multipart)",
+            "GET admin/document-versions/{id}/preview/",
+            "POST admin/document-versions/{id}/{authorize|activate|deactivate|retry|reindex}/ (documento.administrar)",
+            "GET matrices/active/",
+            "POST admin/matrices/publish/ (matriz.administrar)",
+            "GET assets/",
+            "GET incidents/ (filtros estado,activo_reportado_id,reportante_id,dias,q,bandeja,ordering)",
+            "GET incidents/{id}/",
+            "POST incidents/ (multipart con evidencias)",
+            "GET incidents/{id}/operational-guidance/",
+            "POST incidents/{id}/orientation-feedback/",
+            "POST incidents/{id}/start-attention/",
+            "PATCH incidents/{id}/attention/",
+            "POST incidents/{id}/retry-strategic/",
+            "GET risk-versions/ (filtros estado,riesgo_id,origen,bandeja,q)",
+            "GET risk-versions/{id}/",
+            "PATCH risk-versions/{id}/incidents/{analisis_id}/remove/",
+            "PATCH risk-versions/{id}/incidents/{analisis_id}/restore/",
+            "POST risk-versions/{id}/confirm-grouping/",
+            "POST risk-versions/{id}/evaluate/",
+            "POST risk-versions/{id}/decision/",
+            "GET risks/dashboard/ (riesgo.consultar)"
+          ],
+          "verification": {
+            "tsc -b": "OK",
+            "pnpm run lint": "OK (0 problemas)",
+            "pnpm run build": "OK (2212 módulos)",
+            "Zod (node type stripping)": "16 aserciones OK, incluida la regla del roadmap chunk_overlap 300 >= 500/2 rechazada",
+            "Contrato en vivo contra backend": "OK 2026-10-22 (docker compose: backend, celery, postgres, redis): 38/38 comprobaciones; comparación recursiva de claves de api.types.ts vs respuestas reales de 28 endpoints GET/POST con usuarios semilla de los 3 roles, sin diferencias. Prueba negativa del verificador OK (detecta una clave renombrada).",
+            "Enums en vivo": "Todos los valores reales caben en los unions de api.types.ts (estado_actual, orientacion_tipo/resultado, estados TAREA_IA incl. ERROR, VERSION_INCIDENCIA, VERSION_RIESGO, procesamiento/finalidad, niveles). auth/refresh/ devuelve solo {access} (ROTATE_REFRESH_TOKENS desactivado). similitud y umbral_similitud llegan como number.",
+            "Mappers en vivo": "77 mapeos fromApiToDomain sobre datos reales (vía Vite ssrLoadModule) sin propiedades undefined; payloads fromDomainToApi conformes (API keys vacías omitidas, decision VALIDADA solo envía accion, CORREGIDA envía observacion + campos corregidos, multipart de incidencia, filtros estado CSV).",
+            "Seguridad en vivo": "SoD: ADMIN POST risk-versions/{id}/evaluate|decision -> 403; RBAC: REPORTANTE GET admin/ai-config -> 403; sin token -> 401; token inválido -> 401; login inválido -> 401 {detail}; 400 por campo en ai-config e incidents (formato DrfErrorDto). CORS permite http://localhost:5173.",
+            "Renovación JWT en vivo": "Access inválido + refresh válido con 3 consultas concurrentes: 1 sola llamada a auth/refresh/, las 3 consultas OK. Refresh inválido: logout + resetApiState (sin datos residuales de la sesión)."
+          },
+          "relations": [
+            {
+              "from": "MOD-07-FRONT-CORE-RTK-ZOD-AUTH",
+              "type": "ENABLES",
+              "to": "MOD-08-FRONT-ADMIN-PORTAL"
+            },
+            {
+              "from": "MOD-07-FRONT-CORE-RTK-ZOD-AUTH",
+              "type": "ENABLES",
+              "to": "MOD-09-FRONT-REPORTER-PORTAL"
+            },
+            {
+              "from": "MOD-07-FRONT-CORE-RTK-ZOD-AUTH",
+              "type": "ENABLES",
+              "to": "MOD-10-FRONT-ANALYST-N2-AND-RISK-GOVERNANCE"
+            }
+          ],
+          "deviations": [
+            "Contratos alineados con el backend real (MOD-02..06 COMPLETED) en lugar del borrador del roadmap: tarea_ia puede ser null; decision solo envía accion/observacion/justificacion_sin_fuentes/campos corregidos (activo, agrupación y evaluación se persisten antes vía confirm-grouping y evaluate).",
+            "riskDecisionSchema añade la regla CORREGIDA del backend (observación >= 10 y al menos un campo corregido) y el campo descripcion_corregida; se agregan riskEvaluateSchema y confirmGroupingSchema.",
+            "login, refresh y me se exponen en authApi.ts (no en adminApi.ts); adminApi añade activate/retry/reindex de documentos; incidentsApi añade getIncident y retryStrategicAnalysis; risksApi añade getRiskVersion y restoreIncidentToRiskGroup.",
+            "baseApi implementa renovación automática del access token (POST auth/refresh/) con una única promesa en vuelo; si falla, logout y resetApiState vía listener middleware.",
+            "authSlice guarda el SessionUser de dominio (camelCase) en lugar del DTO snake_case; la persistencia en localStorage (riesgoti_auth) se hace con store.subscribe, tolerante a almacenamiento bloqueado.",
+            "uiSlice guarda Citation de dominio; AIConfigResponse/CitationItem/operationalGuidanceResponseSchema del roadmap se sustituyen por DTOs tipados en api.types.ts (sin parseo Zod de respuestas).",
+            "Se añaden auth.schema.ts (loginFormSchema) y common.mapper.ts (citas, criticidad 1..4 -> BAJO..CRITICO, UserRef).",
+            "Los mappers se aplican en los Custom Hooks (no con transformResponse), según scaffold-frontend-module.",
+            "CitationDrawer es presentacional puro (props isOpen/citation/onClose); las páginas lo conectan con useCitationDrawer. Se usan las rutas del roadmap (src/app/api) y no src/services de la plantilla."
+          ]
+        }
+      },
+      {
+        "version": "v0.2",
+        "file": "front/roadmap/v0.2_modulo_portal_administrador_ia_documentos_y_matriz.md",
+        "module_code": "MOD-08-FRONT-ADMIN-PORTAL",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "files_created": [
+            "front/src/hooks/admin/{useAIConfigManager,useKnowledgeBaseManager (incl. useDocumentPreview),useMatrixConfigManager,useAssetCatalogManager,useUserRoleManager,useAdminOverview}.ts",
+            "front/src/hooks/useHashSection.ts",
+            "front/src/components/admin/{AIConfigFormView,AIConnectionPingCard,VectorOutdatedAlert,DocumentVersionsTable,DocumentUploadModal,DocumentPreviewModal,Matrix5x5EditorGrid,MatrixCriteriaList,PublishMatrixDialog,AssetsCatalogTable,AssetFormModal,UsersTable,UserFormModal,RolePermissionsMatrixView,RoleFormModal,AdminKpiSection,SystemStatusArticle,charts}.tsx",
+            "front/src/components/{AsyncContent.tsx,auth/LoginForm.tsx,layout/AppShell.tsx,forms/FormAlert.tsx,forms/applyServerErrors.ts}",
+            "front/src/pages/admin/{AdminPortal,AdminDashboardPage,AIConfigPage,DocsPage,MatrixPage,AssetsPage,UsersPage,RolesPage}.tsx",
+            "front/src/pages/{LoginPage,RolePortalPendingPage}.tsx",
+            "front/src/schemas/{asset,user,role}.schema.ts",
+            "front/src/lib/apiErrors.ts"
+          ],
+          "files_updated": [
+            "front/src/App.tsx (puerta de sesión + Toaster sonner)",
+            "front/src/app/api/adminApi.ts (+assets CRUD, asset-types, users, roles, permissions)",
+            "front/src/app/api/baseApi.ts (tag Role)",
+            "front/src/types/{api,domain}.types.ts (+Asset/User/Role/Permission)",
+            "front/src/mappers/admin.mapper.ts (+asset/user/role/permission, connection test)",
+            "front/src/lib/labels.ts (+PERMISSION_GROUPS, DOCUMENT_PURPOSE_LABEL)",
+            "front/src/schemas/aiConfig.schema.ts (mensajes de tipo numérico)",
+            "front/src/components/ui.tsx (Dialog size xl + useId + bodyClassName; Field error alineado; fix Switch: thumb sin left-0 se salía del riel)"
+          ],
+          "files_removed": [
+            "front/src/pages/SetupStatusPage.tsx (vista provisional v0.0)"
+          ],
+          "endpoints_consumed": [
+            "GET|PUT admin/ai-config/",
+            "POST admin/ai-config/test-connection/",
+            "GET admin/document-versions/ (polling 3000 ms solo con PROCESANDO)",
+            "POST admin/document-versions/upload/",
+            "GET admin/document-versions/{id}/preview/",
+            "POST admin/document-versions/{id}/{authorize|activate|deactivate|retry|reindex}/",
+            "GET matrices/active/",
+            "POST admin/matrices/publish/",
+            "GET|POST assets/",
+            "PATCH assets/{id}/",
+            "GET asset-types/",
+            "GET|POST admin/users/",
+            "PATCH admin/users/{id}/",
+            "GET|POST admin/roles/",
+            "PUT admin/roles/{id}/",
+            "GET admin/permissions/",
+            "GET risks/dashboard/"
+          ],
+          "qa_verified": {
+            "Flujo QA #1 (Zod RAG)": "OK en Edge headless: chunk_size 500 + chunk_overlap 300 muestra el error bajo chunk_overlap, aria-invalid=true y 0 peticiones PUT emitidas.",
+            "Flujo QA #2 (PDF + polling + preview + autorización)": "OK: carga de QA-V02-VPN v1.0 (PDF de 2 págs.), polling medido cada ~3040 ms durante 18 s y detenido al terminar, 3 fragmentos (págs. 1-2) en vista renderizada y Markdown crudo, Autorizar -> Disponible en RAG + toast. Luego se desactivó (queda AUTORIZADO inactivo en la BD de desarrollo).",
+            "SoD": "Rol ADMIN: riesgo.revisar_agrupacion/evaluar/validar deshabilitados con etiqueta Bloqueado por Segregación de Funciones (ISO 27001); usuario.administrar y rol.administrar protegidos.",
+            "Accesibilidad/SEO": "1 h1 y 1 main por vista, títulos PageMeta por sección, matriz role=grid navegable con flechas/Inicio/Fin y Enter, aria-live en estados de procesamiento, skip link.",
+            "Responsive": "Sin desbordamiento horizontal a 390 px en las 7 secciones; menú lateral como Sheet en móvil.",
+            "Sesión": "Login 401 mostrado en el formulario, persistencia y logout (localStorage limpio); rol no ADMIN ve RolePortalPendingPage.",
+            "Build": "tsc -b OK, eslint OK, vite build OK (bundle 805 kB / 241 kB gzip: aviso >500 kB, pendiente code-splitting por portal)."
+          },
+          "relations": [
+            {
+              "from": "MOD-08-FRONT-ADMIN-PORTAL",
+              "type": "PROVIDES",
+              "to": "LoginPage + AppShell + useHashSection reutilizables por MOD-09/MOD-10"
+            }
+          ],
+          "deviations": [
+            "Se adelanta desde v0.6 un login mínimo (LoginPage/LoginForm) y un AppShell con navegación por hash (#/seccion, useSyncExternalStore) sin añadir react-router, porque el QA de v0.2 exige iniciar sesión; v0.6 puede refinarlos.",
+            "Las sub-vistas viven en front/src/pages/admin/*Page.tsx (una por archivo) con AdminPortal como contenedor, en lugar de un único pages/admin.tsx.",
+            "Los roles distintos de ADMIN ven RolePortalPendingPage hasta v0.3 (Reportante) y v0.4-v0.6 (Analista).",
+            "Se añaden endpoints de escritura de activos, usuarios, roles y permisos a adminApi (el roadmap v0.1 solo listaba lectura de activos).",
+            "Reglas SoD de roles replicadas en role.schema.ts y en RolePermissionsMatrixView (bloqueo de combinaciones administración + riesgo para cualquier rol, no solo ADMIN), espejo de RoleService.validate_permission_set.",
+            "Gráficos propios en CSS (una serie, color primario, tooltip y tabla sr-only) sin librería de charts.",
+            "Errores HTTP 400 de DRF se proyectan por campo en React Hook Form (applyServerErrors) y el resto como alerta global del formulario."
+          ]
+        }
+      },
+      {
+        "version": "v0.3",
+        "file": "front/roadmap/v0.3_modulo_portal_reportante_incidencias_y_citas_rag.md",
+        "module_code": "MOD-09-FRONT-REPORTER-PORTAL",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "files_created": [
+            "front/src/hooks/incidents/{useReporterIncidents,useOperationalGuidance}.ts",
+            "front/src/components/reporter/{CreateIncidentFormModal,OperationalGuidanceSection,OrientationFeedbackFooter,OperationalStrategicStatusAside,CitationChip,IncidentCardArticle,IncidentsTable,IncidentReportArticle,ReporterOverview}.tsx",
+            "front/src/pages/reporter/{ReporterPortal,ReporterHomePage,MyIncidentsPage,IncidentDetailPage}.tsx"
+          ],
+          "files_updated": [
+            "front/src/App.tsx (REPORTANTE -> ReporterPortal)",
+            "front/src/hooks/useHashSection.ts (segundo segmento como param: #/incident/{id})",
+            "front/src/components/ui.tsx (Chips: min-w-0 en fieldset para permitir scroll horizontal)",
+            "front/src/pages/RolePortalPendingPage.tsx (solo Analista)"
+          ],
+          "endpoints_consumed": [
+            "GET incidents/?reportante_id={yo} (polling 5000 ms mientras haya incidencias esperando orientación)",
+            "POST incidents/ (multipart con evidencias[])",
+            "GET incidents/{id}/ (polling 2500 ms con la orientación pendiente; 5000 ms mientras la rama estratégica siga PENDIENTE/PROCESANDO)",
+            "GET incidents/{id}/operational-guidance/ (polling 2500 ms hasta COMPLETADA o ERROR)",
+            "POST incidents/{id}/orientation-feedback/ (incidencia.cerrar_propias_por_feedback)",
+            "GET assets/"
+          ],
+          "qa_verified": {
+            "Registro de incidencia (real)": "INC-0318 sobre ERP Contable con evidencia erp_login.log; validación Zod en cliente; redirección al detalle en 272 ms tras el envío.",
+            "Polling (real)": "La orientación terminó en 0,6 s (1 GET) y el polling se detuvo; la bandeja deja de sondear sin incidencias pendientes.",
+            "Caso SENSIBLE (real)": "La descripción con contraseña activó SENSITIVE_RE del backend: vista de alerta de seguridad sin pasos y derivación a PENDIENTE_ATENCION_HUMANA.",
+            "Flujo QA #3 (UI con doble de prueba)": "Por la API key de Gemini inválida no puede generarse una SUGERENCIA real con citas; se simularon en el navegador SOLO las respuestas de la incidencia 318 (orientación con [1]/[2] y feedback). Verificado: chips en línea y barra de fuentes, CitationDrawer con código, versión, Págs. 4 - 5 y tabla GFM de 3 filas, cierre con Escape y foco en Cerrar, Sí funcionó -> Cerrada + Resuelta mediante orientación automática mientras Análisis de riesgo sigue En curso (INV-02), botones de feedback ocultos tras responder.",
+            "Responsive": "Sin desbordamiento a 390 px en inicio, bandeja, detalle y no encontrado (se corrigió el min-width de grid y fieldset).",
+            "Build": "tsc -b, eslint y vite build OK.",
+            "Flujo QA #3 (real, tras configurar key válida)": "INC-0320: SUGERENCIA real de Gemini con 3 pasos y citas POL-CONT-01 (Págs. 14-15 y Pág. 12), polling medido ~2520 ms durante 18 s, CitationDrawer con fragmento real, NO_FUNCIONO -> Pendiente de atención. INC-0321: SUGERENCIA real, Sí funcionó -> Cerrada · Resuelta mediante orientación automática mientras el Análisis de riesgo sigue En curso (INV-02). INC-0319 quedó SIN_RESPALDO (sin feedback, comportamiento correcto)."
+          },
+          "environment_findings": [
+            "CONFIGURACION_IA_RAG v1.1: la API key de Gemini es inválida (400 API_KEY_INVALID): todas las TAREA_IA estratégicas y las operativas que requieren LLM terminan en ERROR. Requiere que el usuario registre una key válida en Configuración IA/RAG.",
+            "Datos de QA creados en la BD de desarrollo: INC-0318 (Lucía Ramírez, SENSIBLE, PENDIENTE_ATENCION_HUMANA).",
+            "2026-10-22: el usuario proporcionó una nueva API key de Gemini de prueba; se validó con test-connection (LLM ok 4,8 s; embeddings ok, 768 dims) y se publicó CONFIGURACION_IA_RAG v1.2-20261022083708 (máscara AQ.Ab8...816A). La key no se almacena en archivos ni en el Brain."
+          ],
+          "deviations": [
+            "Las páginas viven en front/src/pages/reporter/*Page.tsx con ReporterPortal como contenedor (en lugar de un único pages/reporter.tsx); se añade MyIncidentsPage (bandeja con búsqueda, filtro por estado, orden y paginación) que existía en el prototipo.",
+            "No se usa operationalGuidanceResponseSchema.safeParse (decisión de v0.1): la respuesta se tipa con OperationalGuidanceDto y se valida en vivo con el verificador de contratos.",
+            "Otro / No estoy seguro es estado de interfaz: el contrato envía activo_reportado_id = null + activo_texto.",
+            "El detalle también sondea GET incidents/{id}/ (2,5 s con orientación pendiente, 5 s con rama estratégica en curso) para reflejar el estado operativo y estratégico sin recargar.",
+            "Las evidencias se listan (nombre y tamaño) sin descarga: la descarga requiere el token Bearer y se abordará con la consola del analista (v0.4)."
+          ]
+        }
+      },
+      {
+        "version": "v0.4",
+        "file": "front/roadmap/v0.4_modulo_consola_analista_n2_atencion_humana.md",
+        "module_code": "MOD-10A-FRONT-STAFF-N2",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "files_created": [
+            "front/src/hooks/incidents/{useAnalystSummary,useSupportQueue,useSupportCaseAttention}.ts",
+            "front/src/components/staff/{IncidentFiltersNav,SupportQueueTable,PriorAISuggestionBadge,HumanAttentionFormAside,PendingProposalsArticle}.tsx",
+            "front/src/pages/staff/{AnalystPortal,AnalystSummaryPage,SupportListPage,SupportDetailPage}.tsx",
+            "front/src/lib/download.ts"
+          ],
+          "files_updated": [
+            "front/src/app/api/incidentsApi.ts (+downloadEvidence: GET incidents/{id}/evidences/{eid}/download/ con Bearer; el Blob se entrega en responseHandler)",
+            "front/src/components/incidents/* (movidos desde components/reporter: OperationalGuidanceSection, OrientationFeedbackFooter, CitationChip, OperationalStrategicStatusAside, IncidentReportArticle; variantes audience=staff, staff/as/onRetry, showReporter/onDownloadEvidence)",
+            "front/src/components/dashboard/{charts,KpiSection}.tsx (movidos desde components/admin; min-w-0 en ChartCard)",
+            "front/src/hooks/incidents/useOperationalGuidance.ts (+downloadEvidence para el reportante)",
+            "front/src/App.tsx (ANALISTA -> AnalystPortal)"
+          ],
+          "endpoints_consumed": [
+            "GET incidents/?bandeja=atencion&ordering=registrada_en (+estado, activo_reportado_id, dias, q; polling 15 s)",
+            "GET incidents/?ordering=-registrada_en",
+            "GET incidents/{id}/ (polling 5 s con rama estratégica en curso)",
+            "GET incidents/{id}/operational-guidance/",
+            "POST incidents/{id}/start-attention/",
+            "PATCH incidents/{id}/attention/ (cerrar false|true)",
+            "POST incidents/{id}/retry-strategic/",
+            "GET incidents/{id}/evidences/{eid}/download/",
+            "GET risks/dashboard/",
+            "GET risk-versions/?estado=PENDIENTE",
+            "GET assets/"
+          ],
+          "qa_verified": {
+            "Cola N2 (real)": "10 casos ordenados por antigüedad con columna Sugerencia IA previa (No solucionó, Escalada por seguridad, Sin respaldo documental, Falló el servicio de IA); búsqueda por referencia INC-0320 resuelta en backend.",
+            "Consola N2 (real, INC-0320)": "Reporte original con reportante, historial de orientación IA previa con 3 pasos y 2 citas POL-CONT-01, Iniciar atención -> En atención asignada a Andrea Quispe, Guardar nota (avance parcial), cierre con textos cortos bloqueado por Zod (0 PATCH, mensajes por campo), cierre válido -> Cerrada por atención humana con acciones/nota y rama estratégica independiente (Propuesta preparada).",
+            "Evidencias (real)": "Descarga autenticada de erp_login.log (265 B) en INC-0318; también habilitada en el portal del reportante.",
+            "Reintento estratégico (real, INC-0318)": "Falló el servicio de análisis (ClientError, key anterior) -> Reintentar análisis -> Propuesta preparada, intento 2.",
+            "Responsive": "Sin desbordamiento a 390 px en resumen, cola, historial, caso y no encontrado (se corrigió min-w-0 en tarjetas de gráficos y propuestas).",
+            "Build": "tsc -b, eslint y vite build OK."
+          },
+          "deviations": [
+            "Páginas en front/src/pages/staff/*Page.tsx con AnalystPortal como contenedor (en lugar de un único staff.tsx); SupportQueuePage y AllIncidentsPage comparten SupportListPage(mode).",
+            "OriginalReportArticle, PriorAIGuidanceArticle y OperationalStrategicStatusAside reutilizan los componentes del reportante movidos a components/incidents/ con variantes para el analista (sin duplicar código).",
+            "El botón Ver análisis de riesgo RSG-000X se muestra como referencia (código, versión y estado del vínculo) hasta que v0.5 incorpore el espacio de trabajo de riesgos.",
+            "El detalle se abre como #/case/{id} (sufijo -all si viene del historial general) para recordar la bandeja de origen."
+          ]
+        }
+      },
+      {
+        "version": "v0.5",
+        "file": "front/roadmap/v0.5_modulo_espacio_trabajo_riesgos_agrupacion_y_matriz_5x5.md",
+        "module_code": "MOD-10B-FRONT-RISK-WORKSPACE",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "files_created": [
+            "front/src/hooks/risks/{useRiskProposalsQueue,useRiskClusterReview,useRiskMatrixEvaluation}.ts",
+            "front/src/components/risk/{ProposalsTabsNav,ProposalCardArticle,ClusterIncidentsSection,RemoveFalsePositiveModal,GroupingConfirmationFieldset,InteractiveRiskMatrix5x5Grid,EvaluationFormFieldset,StrategicSourcesAside,RiskProposalSummarySection,DecisionReadinessArticle}.tsx",
+            "front/src/pages/risk/{RiskProposalsQueuePage,RiskWorkspacePage}.tsx"
+          ],
+          "files_updated": [
+            "front/src/schemas/riskEvaluation.schema.ts (+confirmGroupingFormSchema(reportedAssetIds): justificación >= 10 si el activo difiere del reportado)",
+            "front/src/pages/staff/AnalystPortal.tsx (+#/proposals y #/workspace/{versionId}, grupo Gobierno de riesgos con riesgo.revisar_agrupacion)",
+            "front/src/pages/admin/AdminPortal.tsx (+Propuestas de riesgo en modo lectura con riesgo.consultar, #/workspace/{versionId})",
+            "front/src/pages/staff/{AnalystSummaryPage,SupportDetailPage}.tsx (enlaces a la propuesta)",
+            "front/src/components/staff/PendingProposalsArticle.tsx (filas clicables onOpen)",
+            "front/src/components/incidents/OperationalStrategicStatusAside.tsx (+onOpenRisk: Ver análisis de riesgo RSG-000X)"
+          ],
+          "endpoints_consumed": [
+            "GET risk-versions/?bandeja=nuevas|pendientes_revision|rechazadas",
+            "GET risk-versions/{id}/",
+            "PATCH risk-versions/{id}/incidents/{analisis_id}/remove/ (riesgo.revisar_agrupacion)",
+            "PATCH risk-versions/{id}/incidents/{analisis_id}/restore/ (riesgo.revisar_agrupacion)",
+            "POST risk-versions/{id}/confirm-grouping/ (riesgo.revisar_agrupacion)",
+            "POST risk-versions/{id}/evaluate/ (riesgo.evaluar)",
+            "GET matrices/active/",
+            "GET assets/"
+          ],
+          "qa_verified": {
+            "Bandeja (real, martin.torres)": "Pestañas Nuevas agrupaciones 4 / Pendientes de revisión 0 / Rechazadas 1 (RSG-0004); badge Posible recurrencia en RSG-0002 v2; un único h1.",
+            "Workspace RSG-0001 (real)": "13 incidencias con similitud en % (97.7% a 58.0%), abiertas y cerradas visibles (INV-02); 2 fuentes POL-CONT-01 abiertas en CitationDrawer.",
+            "Flujo QA #4 (real)": "Retirar INC-0008 (Impresora, 58.0%) sin motivo y con 5 caracteres -> Zod bloquea con 0 PATCH; motivo válido -> 1 PATCH remove, fila en «Excluidas de la agrupación» con motivo y revisor (no se borra de VERSION_INCIDENCIA).",
+            "Confirmación (real)": "ERP Contable preseleccionado como activo reportado, Criticidad Crítico; Confirmar agrupación (12) -> POST confirm-grouping, confirmada por Martín Torres.",
+            "Matriz 5x5 (real)": "Clic en P4 Probable x I3 Moderado -> aria-pressed=true, selects 4x3 sincronizados, nivel ALTO; flecha derecha mueve el foco a P4xI4 (Crítico); select I4 actualiza la grilla; justificación corta bloqueada; guardado -> POST evaluate, toast P4 x I3 = Alto · Matriz v1.0.",
+            "SoD (real, carla.mendoza ADMIN)": "Bandeja y workspace en modo lectura con aviso ISO/IEC 27001: 0 botones de revisión/evaluación, fieldset deshabilitado, grid aria-readonly=true mostrando la celda evaluada.",
+            "Navegación": "Resumen del analista -> propuesta; caso N2 INC-0321 -> Ver análisis de riesgo RSG-0001 v1 -> #/workspace/1.",
+            "Responsive": "Sin desbordamiento a 390 px en bandeja y workspace (se añadió min-w-0 a los fieldset).",
+            "Build": "tsc -b, eslint y vite build OK (2341 módulos); 0 errores de consola."
+          },
+          "environment_findings": [
+            "Datos de QA en la BD de desarrollo: RSG-0001 v1 (id 1) queda con INC-0008 RETIRADA, agrupación confirmada sobre ERP Contable (12 incidencias CONFIRMADA) y EVALUACION_RIESGO P4 x I3 = ALTO por Martín Torres; sigue PENDIENTE de decisión para el QA de v0.6."
+          ],
+          "relations": [
+            {
+              "from": "MOD-10B-FRONT-RISK-WORKSPACE",
+              "type": "ENABLES",
+              "to": "v0.6 decisiones ISO, versiones y tablero (RiskWorkspacePage + DecisionReadinessArticle)"
+            }
+          ],
+          "deviations": [
+            "Páginas en front/src/pages/risk/*Page.tsx (RiskProposalsQueuePage, RiskWorkspacePage) montadas en AnalystPortal y AdminPortal, en lugar de un único pages/risk.tsx.",
+            "Matriz: role=\"gridcell\" en el <td> (con aria-selected) y <button aria-pressed> dentro, porque aria-pressed no es un atributo válido para el rol gridcell.",
+            "fromApiMatrixToDomain se reutiliza desde admin.mapper.ts (no se duplica en risks.mapper.ts).",
+            "Activo reportado de VERSION_INCIDENCIA se resuelve por nombre contra el catálogo (el contrato solo expone activo_nombre); el backend revalida la justificación del cambio de activo.",
+            "Se añaden restauración de excluidas, RiskProposalSummarySection (recomendación en MarkdownViewer) y DecisionReadinessArticle (precondiciones de VALIDADA) que v0.6 completará con el formulario de decisión.",
+            "La evaluación no exige agrupación confirmada (igual que el backend); el aviso de matriz anterior conserva la celda histórica (INV-04)."
+          ]
+        }
+      },
+      {
+        "version": "v0.6",
+        "file": "front/roadmap/v0.6_modulo_decisiones_iso_versiones_y_tablero_indicadores.md",
+        "module_code": "MOD-10-FRONT-ANALYST-N2-AND-RISK-GOVERNANCE",
+        "plan_status": "COMPLETED",
+        "execution": {
+          "executed_at": "2026-10-22",
+          "completed_steps": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "files_created": [
+            "front/src/hooks/risks/{useRiskDecisionFlow,useRiskVersionCompare,useRiskRegistryAndDashboard}.ts",
+            "front/src/hooks/admin/useAuditLog.ts",
+            "front/src/hooks/useAccountProfile.ts",
+            "front/src/components/risk/{RiskDecisionActionFooter,RiskDecisionDialogView,VersionHistorySection,VersionCompareTable,RiskDashboardKpiSection,RiskRegistryTable}.tsx",
+            "front/src/components/admin/AuditLogTable.tsx",
+            "front/src/components/auth/AccountProfileArticle.tsx",
+            "front/src/pages/risk/{RiskRegistryPage,RiskDetailPage}.tsx",
+            "front/src/pages/admin/AuditPage.tsx",
+            "front/src/pages/AccountPage.tsx"
+          ],
+          "files_updated": [
+            "front/src/App.tsx (CitationDrawer global + Toaster; portales con React.lazy/Suspense: un chunk por rol)",
+            "front/src/components/layout/AppShell.tsx (<footer> de trazabilidad ISO/IEC 27001/27002/27005)",
+            "front/src/pages/{staff/AnalystPortal,admin/AdminPortal,reporter/ReporterPortal}.tsx (navegación por rol del roadmap; detalle #/risk/{riskId}, #/workspace/{versionId}, #/case/{id})",
+            "front/src/pages/risk/RiskWorkspacePage.tsx (barra de decisión, diálogo ISO 27005, historial de versiones, enlace al detalle)",
+            "front/src/pages/{reporter/IncidentDetailPage,staff/SupportDetailPage}.tsx (sin CitationDrawer local)",
+            "front/src/pages/LoginPage.tsx + components/auth/LoginForm.tsx (selector de los 6 usuarios semilla con login JWT real si VITE_DEMO_PASSWORD; solo DEV)",
+            "front/src/schemas/riskEvaluation.schema.ts (VALIDADA exige observación >= 10; riskDecisionFormSchema(original): CORREGIDA exige al menos un campo modificado; CORRECTABLE_FIELDS)",
+            "front/src/mappers/risks.mapper.ts (fromDomainRiskVersionToCorrectionDefaults; CORREGIDA envía solo campos modificados; toRiskRegistryRows; centinela NO_DETERMINADO -> null)",
+            "front/src/mappers/admin.mapper.ts (+auditoría), front/src/app/api/adminApi.ts (+getAuditEvents), front/src/types/{api,domain}.types.ts (+AuditEvent*, RiskRegistryRow)",
+            "front/src/lib/labels.ts (+RISK_VERSION_FIELDS, AUDIT_ACTION_LABEL, AUDIT_TARGET_LABEL)",
+            "front/src/vite-env.d.ts, front/.env.example (+VITE_DEMO_PASSWORD opcional; el valor solo vive en front/.env, ignorado por git)"
+          ],
+          "endpoints_consumed": [
+            "POST risk-versions/{id}/decision/ (riesgo.validar; VALIDADA 200, CORREGIDA 201 con la v n+1, RECHAZADA 200)",
+            "GET risk-versions/?riesgo_id={id}",
+            "GET risk-versions/",
+            "GET risks/dashboard/",
+            "GET admin/audit-events/?page&accion&search (usuario.administrar)",
+            "GET auth/me/"
+          ],
+          "qa_verified": {
+            "Flujo E2E #1 (Zod RAG)": "OK: chunk_size 500 + chunk_overlap 300 bloqueado en cliente con error en chunk_overlap y 0 PUT.",
+            "Flujo E2E #2 (PDF + polling + autorización)": "OK: QA-V02-VPN v1.1 (PDF nuevo; el backend rechazó reutilizar el PDF de v1.0 por hash duplicado), polling ~3081 ms detenido al terminar, 3 fragmentos págs. 1-2, Autorizar -> Disponible en RAG; luego desactivado.",
+            "Flujo E2E #3 (citas RAG)": "Parcial en esta sesión: INC-0323 SUGERENCIA real de Gemini con 2 pasos y cita [1] POL-CONT-01 Págs. 14-15 abierta en el CitationDrawer global; NO_FUNCIONO -> Pendiente de atención con Análisis de riesgo En curso. El caso Sí funcionó no pudo repetirse: cuota gratuita de Gemini agotada (429 RESOURCE_EXHAUSTED, 20 req/día); INC-0324 quedó en ERROR y derivada a atención humana (INV-01). Verificado completo en v0.3 (INC-0321).",
+            "Flujo E2E #4 (falso positivo)": "OK en v0.5 (INC-0008 RETIRADA con motivo, Zod bloquea vacío).",
+            "Flujo E2E #5 (validación ISO + SoD)": "OK: RSG-0001 v1 Validar deshabilitado hasta marcar Revisé..., observación vacía bloqueada (0 POST), validación registrada; ADMIN POST risk-versions/7/decision/ y /evaluate/ -> 403 por API; ADMIN sin barra de decisión en la UI.",
+            "CORREGIDA (real)": "RSG-0006 v1: corrección sin cambios bloqueada por Zod; amenaza modificada -> v2 de Martín Torres (navegación automática a #/workspace/9); payload solo con el campo cambiado; v2 confirmada (Servidor de archivos), P2 x I3 = MEDIO y validada con justificación sin fuentes exigida (>= 15).",
+            "Registro y comparador": "4 riesgos validados (una fila por RIESGO), RSG-0002 con Nueva propuesta pendiente (v2), KPIs (4 vigentes, 3 alto/crítico, 2 propuestas pendientes); comparador RSG-0006 v2 vs v1 resalta solo Amenaza.",
+            "Auditoría": "124 eventos; búsqueda RSG-0006 muestra DECIDIR_VERSION_RIESGO (CORREGIDA y VALIDADA), EVALUAR_RIESGO y CONFIRMAR_AGRUPACION_RIESGO de Martín Torres.",
+            "Shell y navegación por rol": "Login por selector de perfiles con JWT real (Martín, Carla, Diego, Lucía). Analista: Resumen | Incidencias | Atención | Propuestas | Registro | Activos | Matriz | Mi cuenta. Admin: Resumen | Incidencias | Registro | Propuestas | Activos | Matriz | Documentos | Config IA/RAG | Usuarios | Roles | Auditoría | Mi cuenta. Reportante: Inicio | Mis incidencias | Mi cuenta. Footer ISO visible.",
+            "Arquitectura (auditoría estática)": "0 fetch/axios y 0 hooks RTK Query importados en pages/ o components/; todas las páginas con PageMeta; 1 h1 por vista; sin estado mockeado.",
+            "Responsive": "Sin desbordamiento a 390 px en registro, detalle, workspace y cuenta.",
+            "Build": "tsc -b, eslint y vite build OK (portales en chunks separados: Admin 64 kB, Analyst 9 kB, Reporter 19 kB); 0 errores de consola."
+          },
+          "environment_findings": [
+            "Cuota gratuita de Gemini gemini-2.5-flash agotada el 2026-10-22 (20 solicitudes/día): las TAREA_IA terminan en ERROR hasta el reinicio de la cuota o un plan con facturación.",
+            "Datos de QA en la BD de desarrollo: RSG-0001 v1 VALIDADA (ALTO); RSG-0006 v1 CORREGIDA -> v2 (id 9) VALIDADA (MEDIO) con justificación sin fuentes; QA-V02-VPN v1.1 autorizado e inactivo; INC-0322 (SIN_RESPALDO), INC-0323 (SUGERENCIA, NO_FUNCIONO) e INC-0324 (ERROR por cuota)."
+          ],
+          "deviations": [
+            "Páginas en front/src/pages/risk/*Page.tsx y portales por rol en lugar de un único pages/risk.tsx; App.tsx conserva la puerta de sesión y el AppShell existente (header, nav, main, footer) en lugar de migrar figma/src/App.tsx.",
+            "Fuentes documentales (consulta) del Analista no se implementa: GET admin/document-versions/ exige documento.administrar en el backend; requiere un cambio de backend (Escenario B) si se desea.",
+            "El selector de perfiles semilla solo existe en DEV y lee la contraseña de VITE_DEMO_PASSWORD (no versionada); sin la variable solo precarga el correo.",
+            "VALIDADA exige observación (>= 10) en el cliente como pide el roadmap aunque el backend la acepta opcional; CORREGIDA precarga el contenido vigente y envía solo los campos modificados.",
+            "El centinela NO_DETERMINADO del análisis estratégico se normaliza a null en risks.mapper (Escenario A) para no mostrar el código crudo.",
+            "El ADMIN conserva Propuestas de riesgo (lectura) además de Registro de riesgos.",
+            "QA E2E ejecutado en línea con el driver CDP (Edge headless) sin lanzar el sub-agente qa-reviewer.",
+            "El chunk principal sigue en ~661 kB (react-markdown + núcleo); los portales ya se cargan bajo demanda."
+          ]
+        }
+      }
+    ],
+    "master_plans": {
+      "backend": "docs/hoja_de_ruta_implementacion_backend.md",
+      "frontend": "docs/hoja_de_ruta_implementacion_frontend.md",
+      "note": "Hojas de ruta maestras de las que derivan los roadmaps por versión de back/roadmap/ y front/roadmap/."
+    }
+  },
+  "iterative_change_governance": {
+    "skill_name": "iterative-change-tracker",
+    "always_on": true,
+    "skill_paths": [
+      ".agents/skills/iterative-change-tracker/SKILL.md",
+      ".claude/skills/iterative-change-tracker/SKILL.md"
+    ],
+    "changelog_index_path": "changelogs/INDEX.md",
+    "changelog_template_path": "changelogs/TEMPLATE.md",
+    "changelog_entries_dir": "changelogs/entries/",
+    "mandatory_protocol_stages": [
+      "ETAPA 1: Consulta del Brain (./agents/brain/project_memory.json), Inspección en Código Fuente y Evaluación de Impacto en Contratos/Mappers (Escenario A vs. Escenario B) (Solo Lectura)",
+      "ETAPA 2: Puerta de Aprobación (STOP & CONFIRM) presentando Requerimiento Normalizado sin errores ortográficos, Contexto del Brain, Estrategia de Contrato/Mappers, Archivos Afectados + Justificación, Impacto Colateral y pregunta de bloqueo '¿Confirmas que proceda con estos cambios?'",
+      "ETAPA 3: Ejecución del cambio, creación de changelogs/entries/CHG-XXXX_YYYY-MM-DD_slug.md con comparativa Antes vs. Después, actualización de changelogs/INDEX.md y registro del nodo CHG-XXXX en el Brain"
+    ],
+    "orthographic_normalization_rule": "PROHIBIDO guardar errores tipográficos o redacción informal del usuario en Changelogs, INDEX.md, nombres de archivos o en el Brain. Toda solicitud debe corregirse ortográficamente y redactarse con lenguaje técnico profesional conservando la intención original.",
+    "changelogs": [
+      {
+        "id": "CHG-0001",
+        "timestamp": "2026-10-22T01:27:00-05:00",
+        "type": "Fullstack",
+        "summary": "Evolución arquitectónica transversal: Clean Architecture de 5 capas en React (Servicio -> Mapper -> Custom Hook -> Página Contenedora -> Componente Presentacional), HTML5 semántico + SEO (<PageMeta />), DTOs/Serializers de Entrada/Salida en Backend, Política Dual de Compatibilidad, instalación e indexación de 10 skills con npx autoskills (sync-autoskills) y actualización in-place de los 14 roadmaps (v0.0 a v0.6).",
+        "file": "changelogs/entries/CHG-0001_2026-10-22_evolucion_arquitectura_limpia_mappers_y_autoskills.md"
+      },
+      {
+        "id": "CHG-0002",
+        "timestamp": "2026-10-22T01:46:00-05:00",
+        "type": "Backend",
+        "summary": "Incorporación de infraestructura contenedorizada con Docker y Docker Compose (PostgreSQL 16, Redis 7, pgAdmin 4, contenedor backend Django con dependencias de requirements.txt y celery_worker) para desbloquear y completar el setup inicial v0.0 (MOD-00-BACKEND-SETUP).",
+        "file": "changelogs/entries/CHG-0002_2026-10-22_incorporacion_docker_compose_postgres_redis_pgadmin_backend.md"
+      },
+      {
+        "id": "CHG-0003",
+        "timestamp": "2026-10-22T14:30:00-05:00",
+        "type": "Backend",
+        "summary": "Corrección de PGADMIN_DEFAULT_EMAIL (admin@riesgoti.local -> admin@riesgoti.com) en back/.env, back/.env.example y el valor por defecto de docker-compose.yml, eliminando el bucle de reinicio del contenedor pgAdmin 4.",
+        "modules": [
+          "MOD-00-BACKEND-SETUP"
+        ],
+        "files": [
+          "back/.env",
+          "back/.env.example",
+          "docker-compose.yml"
+        ],
+        "file": "changelogs/entries/CHG-0003_2026-10-22_correccion_correo_administrador_pgadmin.md"
+      },
+      {
+        "id": "CHG-0004",
+        "timestamp": "2026-10-22T15:00:00-05:00",
+        "type": "Gobernanza",
+        "summary": "Retiro del servidor MCP memory (ruta relativa resuelta contra la caché de npx y formato JSONL incompatible). ./agents/brain/project_memory.json queda como fuente única de verdad del Brain, editada directamente; reglas maestras, skills sync-brain / iterative-change-tracker y sub-agentes alineados.",
+        "modules": [
+          "TRANSVERSAL"
+        ],
+        "files": [
+          ".mcp.json",
+          ".agents/mcp_config.json",
+          "CLAUDE.md",
+          "AGENTS.md",
+          ".claude/skills/sync-brain/SKILL.md",
+          ".agents/skills/sync-brain/SKILL.md",
+          ".claude/skills/iterative-change-tracker/SKILL.md",
+          ".agents/skills/iterative-change-tracker/SKILL.md",
+          ".claude/agents/*.md",
+          ".agents/subagents/*.md",
+          "agents/skills_index.md",
+          "agents/README.md",
+          "backend/roadmap/v0.0_setup_inicial_y_conexion_brain.md"
+        ],
+        "file": "changelogs/entries/CHG-0004_2026-10-22_retiro_servidor_mcp_memory_y_brain_json_canonico.md"
+      },
+      {
+        "id": "CHG-0005",
+        "timestamp": "2026-10-22T17:00:00-05:00",
+        "type": "Backend",
+        "summary": "Idempotencia del comando seed_riesgoti: la matriz semilla v1.0 y la configuración IA/RAG v1.0-default solo se crean sobre una base sin registros; re-ejecutar el seed ya no reactiva versiones semilla, no desactiva las publicadas vía API ni reescribe celdas históricas (INV-04). Pruebas de regresión en apps/accounts/tests/test_seed.py.",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-01-DB-MODELS-SEEDS",
+          "MOD-02-AUTH-RBAC-CRYPTO-AUDIT"
+        ],
+        "files": [
+          "back/apps/accounts/management/commands/seed_riesgoti.py",
+          "back/apps/accounts/tests/test_seed.py"
+        ],
+        "file": "changelogs/entries/CHG-0005_2026-10-22_idempotencia_seed_matriz_y_configuracion_ia.md"
+      },
+      {
+        "id": "CHG-0006",
+        "timestamp": "2026-10-22T22:15:00-05:00",
+        "type": "Backend",
+        "summary": "Reducción de umbral_similitud del RAG de 0.720 a 0.400 (semilla, default del modelo con migración no-op ai_config.0002 y nueva versión activa v1.1 publicada vía PUT /admin/ai-config/) y validación real del proveedor Gemini gemini-2.5-flash en ambas ramas de TAREA_IA.",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-02-AUTH-RBAC-CRYPTO-AUDIT",
+          "MOD-03-DOC-INGESTION-RAG-FAISS",
+          "MOD-05-CELERY-WORKERS-RAG-STRATEGIC"
+        ],
+        "files": [
+          "back/apps/accounts/management/commands/seed_riesgoti.py",
+          "back/apps/ai_config/models.py",
+          "back/apps/ai_config/migrations/0002_umbral_similitud_default_0400.py"
+        ],
+        "file": "changelogs/entries/CHG-0006_2026-10-22_reduccion_umbral_similitud_rag_y_validacion_gemini.md"
+      },
+      {
+        "id": "CHG-0007",
+        "timestamp": "2026-10-22T23:50:00-05:00",
+        "type": "Backend",
+        "summary": "Orden monotónico de HISTORIAL_ESTADO_INCIDENCIA (IncidentService.transition garantiza ocurrido_en posterior al último estado ante retrocesos del reloj o historial futuro), fechas semilla acotadas al pasado y reparación de INC-0015/0016 en desarrollo; restituye INV-01 y elimina una prueba intermitente.",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-04-INCIDENTS-N2-ATTENTION",
+          "MOD-05-CELERY-WORKERS-RAG-STRATEGIC"
+        ],
+        "files": [
+          "back/apps/incidents/services.py",
+          "back/apps/incidents/seed_incidents.py",
+          "back/apps/incidents/tests/test_incidents.py"
+        ],
+        "file": "changelogs/entries/CHG-0007_2026-10-22_orden_monotonico_historial_estados_incidencia.md"
+      },
+      {
+        "id": "CHG-0008",
+        "timestamp": "2026-10-22T23:59:00-05:00",
+        "type": "Documentación",
+        "summary": "Creación del README.md raíz con la guía de instalación y arranque en desarrollo (requisitos, back/.env y front/.env, RIESGOTI_MASTER_KEY, docker compose up, migrate, seed_riesgoti, frontend Vite, URLs, usuarios semilla, proveedor de IA, comandos y solución de problemas). Sin impacto en código ni contratos.",
+        "contract_scenario": "N/A",
+        "modules": [
+          "MOD-00-BACKEND-SETUP",
+          "MOD-00-FRONTEND-SETUP"
+        ],
+        "files": [
+          "README.md"
+        ],
+        "file": "changelogs/entries/CHG-0008_2026-10-22_readme_guia_de_instalacion_y_arranque.md"
+      },
+      {
+        "id": "CHG-0009",
+        "timestamp": "2026-10-23T06:30:00-05:00",
+        "type": "Documentación",
+        "summary": "Mapeo documental de la reorganización de la raíz: bd.sql -> docs/bd.sql, backend/roadmap -> back/roadmap, frontend/roadmap -> front/roadmap, renombre de las hojas de ruta maestras a docs/hoja_de_ruta_implementacion_{backend,frontend}.md, registro de los manuales PDF y retiro del prototipo figma/ (ya migrado a front/src/). Se actualizan README, reglas maestras, sub-agentes, skills, índice de skills, enlaces cruzados de roadmaps y Brain. Sin impacto en código ni contratos.",
+        "contract_scenario": "N/A",
+        "modules": [
+          "MOD-00-BACKEND-SETUP",
+          "MOD-00-FRONTEND-SETUP"
+        ],
+        "files": [
+          "README.md",
+          "CLAUDE.md",
+          "AGENTS.md",
+          "agents/skills_index.md",
+          "agents/brain/project_memory.json",
+          ".claude/agents/frontend-builder.md",
+          ".agents/subagents/frontend-builder.md",
+          ".claude/agents/db-architect.md",
+          ".agents/subagents/db-architect.md",
+          ".claude/skills/sync-autoskills/SKILL.md",
+          ".agents/skills/sync-autoskills/SKILL.md",
+          ".claude/skills/scaffold-frontend-module/SKILL.md",
+          ".agents/skills/scaffold-frontend-module/SKILL.md",
+          ".claude/skills/db-migration-check/SKILL.md",
+          ".agents/skills/db-migration-check/SKILL.md",
+          "front/roadmap/v0.1..v0.6 (enlaces cruzados)",
+          "docs/hoja_de_ruta_implementacion_backend.md (renombrado)",
+          "docs/hoja_de_ruta_implementacion_frontend.md (renombrado)"
+        ],
+        "file": "changelogs/entries/CHG-0009_2026-10-23_reorganizacion_raiz_y_mapeo_documental.md"
+      },
+      {
+        "id": "CHG-0010",
+        "timestamp": "2026-10-23T06:45:00-05:00",
+        "type": "Documentación",
+        "summary": "Corrección del conteo de tablas oficiales del esquema (28 -> 31, verificado contra los CREATE TABLE de docs/bd.sql) en la skill db-migration-check, el sub-agente db-architect y agents/skills_index.md. Sin impacto en código, modelos ni migraciones.",
+        "contract_scenario": "N/A",
+        "modules": [
+          "MOD-01-DB-MODELS-SEEDS"
+        ],
+        "files": [
+          ".claude/skills/db-migration-check/SKILL.md",
+          ".agents/skills/db-migration-check/SKILL.md",
+          ".claude/agents/db-architect.md",
+          ".agents/subagents/db-architect.md",
+          "agents/skills_index.md"
+        ],
+        "file": "changelogs/entries/CHG-0010_2026-10-23_correccion_conteo_tablas_ddl.md"
+      },
+      {
+        "id": "CHG-0011",
+        "timestamp": "2026-10-23T07:15:00-05:00",
+        "type": "Gobernanza",
+        "summary": "Configuración de control de versiones: superproyecto Git en la raíz con submódulos back/ (riesgoti-back) y front/ (riesgoti-front) sobre main sin commits y URL marcadoras; .gitignore raíz nuevo y extensión de los de back/front (desktop.ini, .env.*, roadmap/, changelogs/, artefactos), .gitattributes LF, exclusión de .env en back/.dockerignore y documentación en README §10, CLAUDE.md/AGENTS.md y Brain (repository_layout.vcs).",
+        "contract_scenario": "N/A",
+        "modules": [
+          "MOD-00-BACKEND-SETUP",
+          "MOD-00-FRONTEND-SETUP"
+        ],
+        "files": [
+          ".gitignore",
+          ".gitattributes",
+          ".gitmodules",
+          "back/.gitignore",
+          "back/.gitattributes",
+          "back/.dockerignore",
+          "front/.gitignore",
+          "front/.gitattributes",
+          "README.md",
+          "CLAUDE.md",
+          "AGENTS.md",
+          "agents/brain/project_memory.json"
+        ],
+        "file": "changelogs/entries/CHG-0011_2026-10-23_configuracion_git_superproyecto_y_submodulos.md"
+      },
+      {
+        "id": "CHG-0012",
+        "timestamp": "2026-10-23T08:00:00-05:00",
+        "type": "Documentación",
+        "summary": "Corrección del renderizado de los manuales de usuario en Markdown: los 37 marcadores de imagen (&#91;image: …]) que dejó la exportación se sustituyen por imágenes enlazadas a las 34 capturas de docs/manuales/capturas/ y los 3 diagramas perdidos se reconstruyen en Mermaid; renombre a manual_usuario_{rol}.md, nuevo índice docs/manuales/README.md e indexación en README, CLAUDE.md/AGENTS.md y Brain.",
+        "contract_scenario": "N/A",
+        "modules": [
+          "MOD-00-FRONTEND-SETUP"
+        ],
+        "files": [
+          "docs/manuales/manual_usuario_reportante.md",
+          "docs/manuales/manual_usuario_analista.md",
+          "docs/manuales/manual_usuario_administrador.md",
+          "docs/manuales/README.md",
+          "README.md",
+          "CLAUDE.md",
+          "AGENTS.md",
+          "agents/brain/project_memory.json"
+        ],
+        "file": "changelogs/entries/CHG-0012_2026-10-23_correccion_imagenes_e_indexacion_manuales_usuario.md"
+      }
+    ],
+    "brain_access_policy": "El Brain es exclusivamente este archivo JSON, leído y editado directamente. No usar el servidor MCP memory (@modelcontextprotocol/server-memory): persiste en JSONL y corrompería este archivo (CHG-0004). Validar JSON tras cada edición."
+  },
+  "clean_architecture_governance": {
+    "rules_file": "agents/rules/clean_code_and_architecture.md",
+    "priority": "CRITICAL / ALWAYS ON",
+    "frontend_5_layers": [
+      "1. Servicio API (RTK Query en front/src/app/api/*Api.ts)",
+      "2. Mapper / Adapter (fromApiToDomain y fromDomainToApi en front/src/mappers/*.mapper.ts)",
+      "3. Custom Hook Especializado / Caso de Uso (front/src/hooks/**/use*.ts)",
+      "4. Página Contenedora (front/src/pages/** con <PageMeta />, <main>, <header>, único <h1>)",
+      "5. Componente UI Presentacional (front/src/components/** recibiendo props puras de dominio)"
+    ],
+    "semantic_html_and_seo": {
+      "forbid_div_soup": true,
+      "required_tags": [
+        "main",
+        "section",
+        "article",
+        "header",
+        "nav",
+        "aside",
+        "footer",
+        "fieldset"
+      ],
+      "seo_component": "front/src/components/seo/PageMeta.tsx",
+      "heading_hierarchy": "Single <h1> per page view followed by logical <h2>-<h6> and aria-* attributes"
+    },
+    "backend_dto_and_mapper_rule": "Prohibido devolver entidades de BD crudas. Separación obligatoria entre *InputSerializer (DTO de Entrada) y *OutputSerializer (Mapper de Salida).",
+    "dual_compatibility_policy": {
+      "scenario_a_isolated_change": "Preservar retrocompatibilidad: el Mapper/Adapter (fromApiToDomain/fromDomainToApi) o el OutputSerializer absorbe el cambio sin romper otros consumidores.",
+      "scenario_b_feature_evolution": "Cambio sincronizado Full-Stack en cadena: Modelo -> Input/Output DTO Serializer -> Servicio/ViewSet -> Contrato API TS + Zod -> Mapper/Adapter -> Custom Hook -> Página Contenedora -> Componente Presentacional."
+    }
+  },
+  "skills_registry": {
+    "index_file": "agents/skills_index.md",
+    "last_autoskills_sync": "2026-10-22T07:13:00-05:00",
+    "detected_stack": [
+      "React",
+      "TypeScript",
+      "Tailwind CSS",
+      "Vite",
+      "Node.js",
+      "Django",
+      "PostgreSQL",
+      "React Hook Form",
+      "Zod"
+    ],
+    "core_skills": [
+      "sync-brain",
+      "iterative-change-tracker",
+      "sync-autoskills",
+      "scaffold-backend-module",
+      "scaffold-frontend-module",
+      "db-migration-check"
+    ],
+    "autoskills_installed": [
+      "react-best-practices",
+      "composition-patterns",
+      "typescript-advanced-types",
+      "tailwind-css-patterns",
+      "accessibility",
+      "seo",
+      "frontend-design",
+      "vite",
+      "nodejs-backend-patterns",
+      "nodejs-best-practices",
+      "react-hook-form",
+      "zod"
+    ]
+  },
+  "project_status": {
+    "all_modules_completed": true,
+    "modules": "MOD-01..MOD-10 COMPLETED",
+    "frontend_roadmap": "v0.0..v0.6 COMPLETED",
+    "backend_roadmap": "v0.0..v0.6 COMPLETED",
+    "last_e2e": "2026-10-22 (flujos 1, 2, 4 y 5 OK; flujo 3 parcial por cuota de Gemini, verificado completo en v0.3)",
+    "last_docs_reorganization": "2026-10-23 (CHG-0009: docs/ centraliza bd.sql, hojas de ruta maestras y manuales; figma/ retirado)"
+  }
+}

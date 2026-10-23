@@ -1,0 +1,433 @@
+-- =============================================================================
+-- Script DDL: RiesgoTI – Modelo Entidad-Relación
+-- Compatible con PostgreSQL / MySQL estándar
+-- Generado a partir de la definición del diagrama Lucidchart
+-- =============================================================================
+
+-- Desactivar temporalmente restricciones de FK para recreación limpia (opcional)
+-- SET FOREIGN_KEY_CHECKS = 0; -- (Solo en MySQL si aplica)
+
+-- -----------------------------------------------------------------------------
+-- 1. CATÁLOGOS BASE Y SEGURIDAD (Sin dependencias externas)
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE ROL (
+    id INT NOT NULL,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_ROL PRIMARY KEY (id)
+);
+
+CREATE TABLE PERMISO (
+    id INT NOT NULL,
+    codigo VARCHAR(50) NOT NULL,
+    descripcion TEXT,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_PERMISO PRIMARY KEY (id)
+);
+
+CREATE TABLE ROL_PERMISO (
+    rol_id INT NOT NULL,
+    permiso_id INT NOT NULL,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_ROL_PERMISO PRIMARY KEY (rol_id, permiso_id),
+    CONSTRAINT FK_ROL_PERMISO_ROL FOREIGN KEY (rol_id) REFERENCES ROL(id),
+    CONSTRAINT FK_ROL_PERMISO_PERMISO FOREIGN KEY (permiso_id) REFERENCES PERMISO(id)
+);
+
+CREATE TABLE USUARIO (
+    id INT NOT NULL,
+    rol_id INT NOT NULL,
+    nombres VARCHAR(100) NOT NULL,
+    apellidos VARCHAR(100) NOT NULL,
+    nombre_completo VARCHAR(200) GENERATED ALWAYS AS (CONCAT(nombres, ' ', apellidos)) STORED,
+    correo VARCHAR(150) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_USUARIO PRIMARY KEY (id),
+    CONSTRAINT FK_USUARIO_ROL FOREIGN KEY (rol_id) REFERENCES ROL(id)
+);
+
+CREATE TABLE TIPO_ACTIVO (
+    id INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_TIPO_ACTIVO PRIMARY KEY (id)
+);
+
+CREATE TABLE ACTIVO (
+    id INT NOT NULL,
+    tipo_id INT NOT NULL,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(150) NOT NULL,
+    descripcion TEXT,
+    criticidad INT,
+    activo BOOLEAN NOT NULL DEFAULT TRUE,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_ACTIVO PRIMARY KEY (id),
+    CONSTRAINT FK_ACTIVO_TIPO FOREIGN KEY (tipo_id) REFERENCES TIPO_ACTIVO(id)
+);
+
+CREATE TABLE DOCUMENTO (
+    id INT NOT NULL,
+    codigo VARCHAR(50) NOT NULL,
+    titulo VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_DOCUMENTO PRIMARY KEY (id)
+);
+
+CREATE TABLE RIESGO (
+    id INT NOT NULL,
+    codigo VARCHAR(50) NOT NULL,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_RIESGO PRIMARY KEY (id)
+);
+
+CREATE TABLE NIVEL_RIESGO (
+    id INT NOT NULL,
+    codigo VARCHAR(50) NOT NULL,
+    orden INT NOT NULL,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_NIVEL_RIESGO PRIMARY KEY (id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 2. MATRIZ DE RIESGO Y CRITERIOS
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE CONFIGURACION_MATRIZ (
+    id INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    version VARCHAR(50) NOT NULL,
+    estado VARCHAR(50) NOT NULL,
+    activa BOOLEAN NOT NULL DEFAULT FALSE,
+    creada_por INT NOT NULL,
+    creada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_CONFIGURACION_MATRIZ PRIMARY KEY (id),
+    CONSTRAINT FK_CONFIGURACION_MATRIZ_USUARIO FOREIGN KEY (creada_por) REFERENCES USUARIO(id)
+);
+
+CREATE TABLE CRITERIO_PROBABILIDAD (
+    matriz_id INT NOT NULL,
+    valor INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_CRITERIO_PROBABILIDAD PRIMARY KEY (matriz_id, valor),
+    CONSTRAINT FK_CRITERIO_PROB_MATRIZ FOREIGN KEY (matriz_id) REFERENCES CONFIGURACION_MATRIZ(id)
+);
+
+CREATE TABLE CRITERIO_IMPACTO (
+    matriz_id INT NOT NULL,
+    valor INT NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_CRITERIO_IMPACTO PRIMARY KEY (matriz_id, valor),
+    CONSTRAINT FK_CRITERIO_IMP_MATRIZ FOREIGN KEY (matriz_id) REFERENCES CONFIGURACION_MATRIZ(id)
+);
+
+CREATE TABLE CELDA_MATRIZ (
+    id INT NOT NULL,
+    matriz_id INT NOT NULL,
+    probabilidad INT NOT NULL,
+    impacto INT NOT NULL,
+    nivel_id INT NOT NULL,
+    creada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_CELDA_MATRIZ PRIMARY KEY (id),
+    CONSTRAINT FK_CELDA_MATRIZ_CONF FOREIGN KEY (matriz_id) REFERENCES CONFIGURACION_MATRIZ(id),
+    CONSTRAINT FK_CELDA_MATRIZ_NIVEL FOREIGN KEY (nivel_id) REFERENCES NIVEL_RIESGO(id),
+    CONSTRAINT FK_CELDA_MATRIZ_PROB FOREIGN KEY (matriz_id, probabilidad) REFERENCES CRITERIO_PROBABILIDAD(matriz_id, valor),
+    CONSTRAINT FK_CELDA_MATRIZ_IMP FOREIGN KEY (matriz_id, impacto) REFERENCES CRITERIO_IMPACTO(matriz_id, valor)
+);
+
+-- -----------------------------------------------------------------------------
+-- 3. GESTIÓN DOCUMENTAL Y RAG (FRAGMENTACIÓN)
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE VERSION_DOCUMENTO (
+    id INT NOT NULL,
+    documento_id INT NOT NULL,
+    version VARCHAR(50) NOT NULL,
+    clave_archivo VARCHAR(255) NOT NULL,
+    sha256 VARCHAR(64) NOT NULL,
+    cargada_por INT NOT NULL,
+    cargada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    procesamiento VARCHAR(50),
+    finalidad VARCHAR(100),
+    modelo_embedding VARCHAR(100),
+    version_segmentacion VARCHAR(50),
+    autorizada_por INT,
+    autorizada_en TIMESTAMP,
+    activa BOOLEAN NOT NULL DEFAULT FALSE,
+    error_procesamiento TEXT,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT PK_VERSION_DOCUMENTO PRIMARY KEY (id),
+    CONSTRAINT FK_VER_DOC_DOCUMENTO FOREIGN KEY (documento_id) REFERENCES DOCUMENTO(id),
+    CONSTRAINT FK_VER_DOC_CARGADA_POR FOREIGN KEY (cargada_por) REFERENCES USUARIO(id),
+    CONSTRAINT FK_VER_DOC_AUTORIZADA_POR FOREIGN KEY (autorizada_por) REFERENCES USUARIO(id)
+);
+
+CREATE TABLE FRAGMENTO_DOCUMENTO (
+    id INT NOT NULL,
+    version_documento_id INT NOT NULL,
+    orden INT NOT NULL,
+    pagina_inicio INT,
+    pagina_fin INT,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ultima_modificacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    contenido TEXT NOT NULL,
+    CONSTRAINT PK_FRAGMENTO_DOCUMENTO PRIMARY KEY (id),
+    CONSTRAINT FK_FRAGMENTO_DOC_VERSION FOREIGN KEY (version_documento_id) REFERENCES VERSION_DOCUMENTO(id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 4. VERSIONES DE RIESGO Y EVALUACIÓN
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE VERSION_RIESGO (
+    id INT NOT NULL,
+    riesgo_id INT NOT NULL,
+    numero INT NOT NULL,
+    origen VARCHAR(50),
+    creada_por INT NOT NULL,
+    creada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    titulo VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    amenaza TEXT,
+    vulnerabilidad TEXT,
+    consecuencia TEXT,
+    recomendacion TEXT,
+    origen_recomendacion VARCHAR(50),
+    activo_confirmado_id INT,
+    agrupacion_confirmada_por INT,
+    agrupacion_confirmada_en TIMESTAMP,
+    CONSTRAINT PK_VERSION_RIESGO PRIMARY KEY (id),
+    CONSTRAINT FK_VER_RIESGO_RIESGO FOREIGN KEY (riesgo_id) REFERENCES RIESGO(id),
+    CONSTRAINT FK_VER_RIESGO_CREADOR FOREIGN KEY (creada_por) REFERENCES USUARIO(id),
+    CONSTRAINT FK_VER_RIESGO_ACTIVO FOREIGN KEY (activo_confirmado_id) REFERENCES ACTIVO(id),
+    CONSTRAINT FK_VER_RIESGO_AGRUP_POR FOREIGN KEY (agrupacion_confirmada_por) REFERENCES USUARIO(id)
+);
+
+CREATE TABLE EVALUACION_RIESGO (
+    version_id INT NOT NULL,
+    celda_id INT NOT NULL,
+    evaluador_id INT NOT NULL,
+    justificacion TEXT,
+    evaluada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT PK_EVALUACION_RIESGO PRIMARY KEY (version_id),
+    CONSTRAINT FK_EVAL_RIESGO_VERSION FOREIGN KEY (version_id) REFERENCES VERSION_RIESGO(id),
+    CONSTRAINT FK_EVAL_RIESGO_CELDA FOREIGN KEY (celda_id) REFERENCES CELDA_MATRIZ(id),
+    CONSTRAINT FK_EVAL_RIESGO_EVALUADOR FOREIGN KEY (evaluador_id) REFERENCES USUARIO(id)
+);
+
+CREATE TABLE DECISION_RIESGO (
+    version_id INT NOT NULL,
+    accion VARCHAR(100) NOT NULL,
+    analista_id INT NOT NULL,
+    observacion TEXT,
+    justificacion_sin_fuentes TEXT,
+    decidida_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT PK_DECISION_RIESGO PRIMARY KEY (version_id),
+    CONSTRAINT FK_DECISION_RIESGO_VERSION FOREIGN KEY (version_id) REFERENCES VERSION_RIESGO(id),
+    CONSTRAINT FK_DECISION_RIESGO_ANALISTA FOREIGN KEY (analista_id) REFERENCES USUARIO(id)
+);
+
+CREATE TABLE CITA_VERSION_RIESGO (
+    version_id INT NOT NULL,
+    numero INT NOT NULL,
+    fragmento_id INT NOT NULL,
+    CONSTRAINT PK_CITA_VERSION_RIESGO PRIMARY KEY (version_id, numero),
+    CONSTRAINT FK_CITA_RIESGO_VERSION FOREIGN KEY (version_id) REFERENCES VERSION_RIESGO(id),
+    CONSTRAINT FK_CITA_RIESGO_FRAGMENTO FOREIGN KEY (fragmento_id) REFERENCES FRAGMENTO_DOCUMENTO(id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 5. INCIDENCIAS, ATENCIÓN Y EVIDENCIAS
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE INCIDENCIA (
+    id INT NOT NULL,
+    reportante_id INT NOT NULL,
+    activo_reportado_id INT,
+    activo_texto VARCHAR(255),
+    titulo VARCHAR(255) NOT NULL,
+    descripcion TEXT NOT NULL,
+    registrada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT PK_INCIDENCIA PRIMARY KEY (id),
+    CONSTRAINT FK_INCIDENCIA_REPORTANTE FOREIGN KEY (reportante_id) REFERENCES USUARIO(id),
+    CONSTRAINT FK_INCIDENCIA_ACTIVO FOREIGN KEY (activo_reportado_id) REFERENCES ACTIVO(id)
+);
+
+CREATE TABLE HISTORIAL_ESTADO_INCIDENCIA (
+    id INT NOT NULL,
+    incidencia_id INT NOT NULL,
+    estado VARCHAR(50) NOT NULL,
+    actor_id INT NOT NULL,
+    motivo TEXT,
+    ocurrido_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT PK_HISTORIAL_ESTADO_INCIDENCIA PRIMARY KEY (id),
+    CONSTRAINT FK_HISTORIAL_INCIDENCIA FOREIGN KEY (incidencia_id) REFERENCES INCIDENCIA(id),
+    CONSTRAINT FK_HISTORIAL_ACTOR FOREIGN KEY (actor_id) REFERENCES USUARIO(id)
+);
+
+CREATE TABLE ATENCION_INCIDENCIA (
+    incidencia_id INT NOT NULL,
+    analista_id INT NOT NULL,
+    iniciada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    acciones TEXT,
+    nota_resolucion TEXT,
+    cerrada_en TIMESTAMP,
+    CONSTRAINT PK_ATENCION_INCIDENCIA PRIMARY KEY (incidencia_id),
+    CONSTRAINT FK_ATENCION_INCIDENCIA FOREIGN KEY (incidencia_id) REFERENCES INCIDENCIA(id),
+    CONSTRAINT FK_ATENCION_ANALISTA FOREIGN KEY (analista_id) REFERENCES USUARIO(id)
+);
+
+CREATE TABLE EVIDENCIA_INCIDENCIA (
+    id INT NOT NULL,
+    incidencia_id INT NOT NULL,
+    nombre_original VARCHAR(255) NOT NULL,
+    clave_archivo VARCHAR(255) NOT NULL,
+    tipo_mime VARCHAR(100) NOT NULL,
+    bytes BIGINT NOT NULL,
+    sha256 VARCHAR(64) NOT NULL,
+    creada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT PK_EVIDENCIA_INCIDENCIA PRIMARY KEY (id),
+    CONSTRAINT FK_EVIDENCIA_INCIDENCIA FOREIGN KEY (incidencia_id) REFERENCES INCIDENCIA(id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 6. TAREAS DE INTELIGENCIA ARTIFICIAL, ANÁLISIS Y ORIENTACIONES
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE TAREA_IA (
+    id INT NOT NULL,
+    incidencia_id INT NOT NULL,
+    rama VARCHAR(50),
+    intento INT NOT NULL DEFAULT 1,
+    clave_idempotencia VARCHAR(100),
+    estado VARCHAR(50) NOT NULL,
+    proveedor VARCHAR(50),
+    modelo VARCHAR(100),
+    version_configuracion VARCHAR(50),
+    solicitada_por INT NOT NULL,
+    creada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    iniciada_en TIMESTAMP,
+    terminada_en TIMESTAMP,
+    error_codigo VARCHAR(100),
+    error_detalle TEXT,
+    CONSTRAINT PK_TAREA_IA PRIMARY KEY (id),
+    CONSTRAINT FK_TAREA_IA_INCIDENCIA FOREIGN KEY (incidencia_id) REFERENCES INCIDENCIA(id),
+    CONSTRAINT FK_TAREA_IA_SOLICITANTE FOREIGN KEY (solicitada_por) REFERENCES USUARIO(id)
+);
+
+CREATE TABLE ANALISIS_INCIDENCIA (
+    tarea_id INT NOT NULL,
+    activo_identificado VARCHAR(255),
+    amenaza TEXT,
+    vulnerabilidad TEXT,
+    consecuencia TEXT,
+    riesgo_candidato TEXT,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT PK_ANALISIS_INCIDENCIA PRIMARY KEY (tarea_id),
+    CONSTRAINT FK_ANALISIS_INC_TAREA FOREIGN KEY (tarea_id) REFERENCES TAREA_IA(id)
+);
+
+CREATE TABLE VERSION_INCIDENCIA (
+    version_id INT NOT NULL,
+    analisis_id INT NOT NULL,
+    estado VARCHAR(50) NOT NULL,
+    similitud DECIMAL(5, 4),
+    motivo_similitud TEXT,
+    extracto_reporte TEXT,
+    revisada_por INT,
+    revisada_en TIMESTAMP,
+    motivo_retiro TEXT,
+    CONSTRAINT PK_VERSION_INCIDENCIA PRIMARY KEY (version_id, analisis_id),
+    CONSTRAINT FK_VER_INC_VERSION FOREIGN KEY (version_id) REFERENCES VERSION_RIESGO(id),
+    CONSTRAINT FK_VER_INC_ANALISIS FOREIGN KEY (analisis_id) REFERENCES ANALISIS_INCIDENCIA(tarea_id),
+    CONSTRAINT FK_VER_INC_REVISOR FOREIGN KEY (revisada_por) REFERENCES USUARIO(id)
+);
+
+CREATE TABLE ORIENTACION_OPERATIVA (
+    tarea_id INT NOT NULL,
+    tipo VARCHAR(50),
+    resumen TEXT,
+    advertencia TEXT,
+    creada_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT PK_ORIENTACION_OPERATIVA PRIMARY KEY (tarea_id),
+    CONSTRAINT FK_ORIENTACION_TAREA FOREIGN KEY (tarea_id) REFERENCES TAREA_IA(id)
+);
+
+CREATE TABLE PASO_ORIENTACION (
+    tarea_id INT NOT NULL,
+    orden INT NOT NULL,
+    instruccion TEXT NOT NULL,
+    CONSTRAINT PK_PASO_ORIENTACION PRIMARY KEY (tarea_id, orden),
+    CONSTRAINT FK_PASO_ORIENTACION_TAREA FOREIGN KEY (tarea_id) REFERENCES ORIENTACION_OPERATIVA(tarea_id)
+);
+
+CREATE TABLE RESPUESTA_ORIENTACION (
+    tarea_id INT NOT NULL,
+    resultado VARCHAR(100),
+    respondida_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT PK_RESPUESTA_ORIENTACION PRIMARY KEY (tarea_id),
+    CONSTRAINT FK_RESPUESTA_ORIENTACION_TAREA FOREIGN KEY (tarea_id) REFERENCES ORIENTACION_OPERATIVA(tarea_id)
+);
+
+CREATE TABLE CITA_ORIENTACION (
+    tarea_id INT NOT NULL,
+    numero INT NOT NULL,
+    fragmento_id INT NOT NULL,
+    CONSTRAINT PK_CITA_ORIENTACION PRIMARY KEY (tarea_id, numero),
+    CONSTRAINT FK_CITA_ORIENTACION_TAREA FOREIGN KEY (tarea_id) REFERENCES ORIENTACION_OPERATIVA(tarea_id),
+    CONSTRAINT FK_CITA_ORIENTACION_FRAG FOREIGN KEY (fragmento_id) REFERENCES FRAGMENTO_DOCUMENTO(id)
+);
+
+-- -----------------------------------------------------------------------------
+-- 7. AUDITORÍA TRANSVERSAL
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE EVENTO_AUDITORIA (
+    id INT NOT NULL,
+    actor_id INT,
+    incidencia_id INT,
+    version_riesgo_id INT,
+    version_documento_id INT,
+    matriz_id INT,
+    activo_id INT,
+    usuario_objeto_id INT,
+    rol_id INT,
+    accion VARCHAR(100) NOT NULL,
+    detalle TEXT,
+    ocurrido_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT PK_EVENTO_AUDITORIA PRIMARY KEY (id),
+    CONSTRAINT FK_AUDITORIA_ACTOR FOREIGN KEY (actor_id) REFERENCES USUARIO(id),
+    CONSTRAINT FK_AUDITORIA_INCIDENCIA FOREIGN KEY (incidencia_id) REFERENCES INCIDENCIA(id),
+    CONSTRAINT FK_AUDITORIA_VER_RIESGO FOREIGN KEY (version_riesgo_id) REFERENCES VERSION_RIESGO(id),
+    CONSTRAINT FK_AUDITORIA_VER_DOC FOREIGN KEY (version_documento_id) REFERENCES VERSION_DOCUMENTO(id),
+    CONSTRAINT FK_AUDITORIA_MATRIZ FOREIGN KEY (matriz_id) REFERENCES CONFIGURACION_MATRIZ(id),
+    CONSTRAINT FK_AUDITORIA_ACTIVO FOREIGN KEY (activo_id) REFERENCES ACTIVO(id),
+    CONSTRAINT FK_AUDITORIA_USUARIO_OBJ FOREIGN KEY (usuario_objeto_id) REFERENCES USUARIO(id),
+    CONSTRAINT FK_AUDITORIA_ROL FOREIGN KEY (rol_id) REFERENCES ROL(id)
+);
