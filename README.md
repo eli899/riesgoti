@@ -238,37 +238,7 @@ git clone --recurse-submodules https://github.com/<usuario>/riesgoti.git
 git submodule update --init --recursive
 ```
 
-### 10.2 Primera publicación (pendiente)
-
-Los tres repositorios están inicializados en la rama `main`, sin commits. Las URL de `.gitmodules` son marcadores (`https://github.com/<usuario>/...`). Pasos para publicarlos:
-
-```bash
-# 1. Crea en GitHub los repositorios riesgoti, riesgoti-back y riesgoti-front (vacíos).
-
-# 2. Commit inicial y push de cada submódulo (Git exige un commit para registrarlo)
-cd back
-git add -A && git commit -m "Commit inicial del backend"
-git remote add origin https://github.com/eli899/riesgoti-back.git
-git push -u origin main
-cd ../front
-git add -A && git commit -m "Commit inicial del frontend"
-git remote add origin https://github.com/eli899/riesgoti-front.git
-git push -u origin main
-cd ..
-
-# 3. Sustituye <usuario> en .gitmodules (o usa: git submodule set-url back <url>)
-
-# 4. Registra los submódulos en el superproyecto y publícalo
-git add .gitmodules back front
-git submodule init
-git add -A && git commit -m "Commit inicial del superproyecto"
-git remote add origin https://github.com/eli899/riesgoti.git
-git push -u origin main
-```
-
-Al ejecutar `git add ... back front`, Git muestra el aviso `adding embedded git repository`. Puedes ignorarlo: como `.gitmodules` ya declara las rutas, `git submodule status` las lista como submódulos.
-
-### 10.3 Trabajo diario
+### 10.2 Trabajo diario
 
 Haz el commit primero dentro del submódulo y después en la raíz, para que el superproyecto apunte al commit nuevo:
 

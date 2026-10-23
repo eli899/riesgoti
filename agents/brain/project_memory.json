@@ -1,7 +1,7 @@
 {
   "project": "RiesgoTI",
   "version": "1.0.0",
-  "last_updated": "2026-10-23T08:00:00-05:00",
+  "last_updated": "2026-10-23T09:00:00-05:00",
   "standards_alignment": [
     "ISO/IEC 27005:2022 (Gestión de Riesgos de Seguridad de la Información)",
     "ISO/IEC 27001:2022 (Sistema de Gestión de Seguridad de la Información - SGSI y SoD)",
@@ -81,7 +81,9 @@
       "agents/": "Brain (brain/project_memory.json), reglas (rules/) y skills_index.md",
       ".claude/ y .agents/": "Skills y sub-agentes simétricos para Claude Code y Google Antigravity",
       "docker-compose.yml": "Servicios db, redis, pgadmin, backend y celery_worker",
-      "README.md, CLAUDE.md, AGENTS.md": "Guía de arranque y reglas maestras (CLAUDE.md == AGENTS.md)"
+      "README.md, CLAUDE.md, AGENTS.md": "Guía de arranque y reglas maestras (CLAUDE.md == AGENTS.md)",
+      "back/README.md": "Guía del submódulo riesgoti-back: arranque Docker, endpoints /api/v1/, comandos, pruebas y convenciones (CHG-0013)",
+      "front/README.md": "Guía del submódulo riesgoti-front: scripts, portales por rol, arquitectura de 5 capas, RTK Query y convenciones (CHG-0013)"
     },
     "retired_paths": {
       "bd.sql (raíz)": "docs/bd.sql",
@@ -2670,6 +2672,24 @@
           "agents/brain/project_memory.json"
         ],
         "file": "changelogs/entries/CHG-0012_2026-10-23_correccion_imagenes_e_indexacion_manuales_usuario.md"
+      },
+      {
+        "id": "CHG-0013",
+        "timestamp": "2026-10-23T09:00:00-05:00",
+        "type": "Documentación",
+        "summary": "README propios de los submódulos: nuevo back/README.md (propósito, ramas de TAREA_IA y pipeline RAG, .env, Docker Compose, estructura de apps, catálogo de endpoints /api/v1/, comandos de gestión, suites pytest y convenciones) y sustitución de la plantilla de Vite en front/README.md (stack, scripts, portales por rol, arquitectura de 5 capas, tags y polling de RTK Query, formularios Zod y guía de nuevos módulos). Sin impacto en código ni contratos.",
+        "contract_scenario": "N/A",
+        "modules": [
+          "MOD-00-BACKEND-SETUP",
+          "MOD-00-FRONTEND-SETUP"
+        ],
+        "files": [
+          "back/README.md",
+          "front/README.md",
+          "changelogs/INDEX.md",
+          "agents/brain/project_memory.json"
+        ],
+        "file": "changelogs/entries/CHG-0013_2026-10-23_readme_submodulos_back_y_front.md"
       }
     ],
     "brain_access_policy": "El Brain es exclusivamente este archivo JSON, leído y editado directamente. No usar el servidor MCP memory (@modelcontextprotocol/server-memory): persiste en JSONL y corrompería este archivo (CHG-0004). Validar JSON tras cada edición."
