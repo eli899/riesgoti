@@ -1,7 +1,7 @@
 {
   "project": "RiesgoTI",
   "version": "1.0.0",
-  "last_updated": "2026-10-23T09:00:00-05:00",
+  "last_updated": "2026-10-26T10:00:00-05:00",
   "standards_alignment": [
     "ISO/IEC 27005:2022 (Gestión de Riesgos de Seguridad de la Información)",
     "ISO/IEC 27001:2022 (Sistema de Gestión de Seguridad de la Información - SGSI y SoD)",
@@ -62,7 +62,31 @@
       "validation_and_forms": "zod + react-hook-form + @hookform/resolvers",
       "styling_and_ui": "tailwindcss + lucide-react + clsx + tailwind-merge + sonner + react-dropzone",
       "markdown_and_citations": "react-markdown + remark-gfm + rehype-sanitize + CitationDrawer interactivo",
-      "design_prototype_status": "RETIRADO (CHG-0009): el prototipo figma/ se eliminó tras migrar íntegramente su diseño a front/src/, que es la única base visual."
+      "design_prototype_status": "RETIRADO (CHG-0009): el prototipo figma/ se eliminó tras migrar íntegramente su diseño a front/src/, que es la única base visual.",
+      "e2e_testing": {
+        "runner": "@playwright/test 1.64.1 (Chromium), workers 1, proyectos smoke | setup | flujos",
+        "stack": "docker-compose.e2e.yml (proyecto riesgoti-e2e): BD tmpfs + migrate + seed_riesgoti en cada arranque, storage/ propio, API :8001, front Vite :5174; reutiliza la imagen riesgo_ti-backend y el volumen riesgo_ti_huggingface_cache",
+        "lifecycle": "front/e2e/support/global-setup.ts levanta el stack con `docker compose up -d --wait` y lo destruye al terminar; E2E_STACK=fresh|keep|reuse|off vía front/e2e/support/run.mjs",
+        "scripts": [
+          "test:e2e",
+          "test:e2e:keep",
+          "test:e2e:reuse",
+          "test:e2e:smoke",
+          "test:e2e:ui",
+          "test:e2e:report"
+        ],
+        "specs": [
+          "auth.setup.ts",
+          "smoke.spec.ts",
+          "auth.spec.ts",
+          "reporter.spec.ts",
+          "analyst.spec.ts",
+          "risk-workflow.spec.ts",
+          "admin.spec.ts"
+        ],
+        "determinism": "Sin API key la IA corre en modo extractivo local. Textos de incidencias fijos en e2e/support/incidents.ts con similitud medida (VPN 0.513 -> SUGERENCIA; impresora 0.256 -> SIN_RESPALDO; umbral 0.40). El sufijo aleatorio en el título alteraba el vector de consulta.",
+        "last_result": "2026-10-25: 40/40 pruebas en dos ejecuciones consecutivas desde cero (4.3 min cada una)"
+      }
     }
   },
   "repository_layout": {
@@ -1296,6 +1320,35 @@
         "MOD-10B-FRONT-RISK-WORKSPACE (v0.5)": "COMPLETED",
         "v0.6 decisiones ISO y tablero": "COMPLETED"
       }
+    },
+    {
+      "order": 11,
+      "code": "MOD-11-FRONT-DESIGN-SYSTEM-TOKENS",
+      "layer": "FRONTEND (transversal, solo presentación)",
+      "title": "Sistema de diseño: escala de tokens Tailwind (tipografía y radios), foco accesible, objetos canónicos de clases y componentes reutilizables",
+      "target_paths": [
+        "front/src/index.css",
+        "front/src/lib/utils.ts",
+        "front/src/styles/",
+        "front/src/components/",
+        "front/src/pages/",
+        "front/scripts/check-design-tokens.mjs"
+      ],
+      "dependencies": [
+        "MOD-08-FRONT-ADMIN-PORTAL",
+        "MOD-09-FRONT-REPORTER-PORTAL",
+        "MOD-10-FRONT-ANALYST-N2-AND-RISK-GOVERNANCE"
+      ],
+      "tables_involved": [],
+      "assigned_subagent": "frontend-builder",
+      "status": "COMPLETED",
+      "progress": {
+        "F1 fundaciones (CHG-0019)": "COMPLETED",
+        "F2 objetos canónicos (CHG-0020)": "COMPLETED",
+        "F3 migración de la escala (CHG-0021)": "COMPLETED",
+        "F4 adopción (CHG-0022)": "COMPLETED",
+        "F5 protección y cierre (CHG-0023)": "COMPLETED"
+      }
     }
   ],
   "roadmap_plans": {
@@ -2165,7 +2218,7 @@
             }
           ],
           "deviations": [
-            "Se adelanta desde v0.6 un login mínimo (LoginPage/LoginForm) y un AppShell con navegación por hash (#/seccion, useSyncExternalStore) sin añadir react-router, porque el QA de v0.2 exige iniciar sesión; v0.6 puede refinarlos.",
+            "Se adelanta desde v0.6 un login mínimo (LoginPage/LoginForm) y un AppShell con navegación por hash (#/seccion, useSyncExternalStore) sin añadir react-router, porque el QA de v0.2 exige iniciar sesión; v0.6 puede refinarlos. SUPERADO en CHG-0018: navegación con React Router (BrowserRouter, URLs limpias) y useHashSection eliminado; ver frontend_routing.",
             "Las sub-vistas viven en front/src/pages/admin/*Page.tsx (una por archivo) con AdminPortal como contenedor, en lugar de un único pages/admin.tsx.",
             "Los roles distintos de ADMIN ven RolePortalPendingPage hasta v0.3 (Reportante) y v0.4-v0.6 (Analista).",
             "Se añaden endpoints de escritura de activos, usuarios, roles y permisos a adminApi (el roadmap v0.1 solo listaba lectura de activos).",
@@ -2431,6 +2484,268 @@
             "El chunk principal sigue en ~661 kB (react-markdown + núcleo); los portales ya se cargan bajo demanda."
           ]
         }
+      },
+      {
+        "version": "v0.7",
+        "file": "front/roadmap/v0.7_refactorizacion_sistema_de_diseno_tokens_reutilizables.md",
+        "module_code": "MOD-11-FRONT-DESIGN-SYSTEM-TOKENS",
+        "plan_status": "COMPLETED",
+        "created_at": "2026-10-25",
+        "user_decisions": [
+          "Modo oscuro fuera de alcance",
+          "Se unifican los medios píxeles de la escala tipográfica",
+          "Entrega por fases trazables: un CHG por fase con su propia puerta de aprobación"
+        ],
+        "baseline": {
+          "arbitrary_text_sizes": "308 usos / 17 variantes",
+          "arbitrary_radii": "101 usos / 8 variantes",
+          "files_with_arbitrary_values": 66,
+          "manual_cards": 14,
+          "tables": 9,
+          "focus_ring_contrast": "≈1,5:1 (#bfdbfe), por debajo de 3:1 (WCAG 1.4.11)"
+        },
+        "requirements": [
+          "RQ-01 escala tipográfica",
+          "RQ-02 radios semánticos",
+          "RQ-03 interlineado sin regresión",
+          "RQ-04 tailwind-merge",
+          "RQ-05 foco accesible",
+          "RQ-06 objetos canónicos",
+          "RQ-07 BackLink/SectionTitle",
+          "RQ-08 estados interactivos",
+          "RQ-09 migración de la escala",
+          "RQ-10 adopción de piezas reutilizables",
+          "RQ-11 protección en lint",
+          "RQ-12 documentación",
+          "RNF-01 build+lint+E2E 46/46 por fase",
+          "RNF-02 comparación visual por fase"
+        ],
+        "phases": [
+          {
+            "id": "F1",
+            "changelog": "CHG-0019",
+            "title": "Fundaciones del tema, foco y tailwind-merge",
+            "requirements": [
+              "RQ-01",
+              "RQ-02",
+              "RQ-03",
+              "RQ-04",
+              "RQ-05"
+            ],
+            "status": "COMPLETED",
+            "executed_at": "2026-10-25",
+            "files": [
+              "front/src/index.css",
+              "front/src/lib/utils.ts",
+              "front/src/components/risk/ProposalCardArticle.tsx"
+            ],
+            "deviations": [
+              "Se descarta el halo focus:ring-4 focus:ring-mid de los inputs (contraste ≈1,5:1); usan el contorno global + focus:border-primary.",
+              "Paso 1.4b añadido: ProposalCardArticle traslada el foco a la tarjeta (has-focus-visible:outline-*) porque anulaba el contorno de su botón."
+            ],
+            "verification": {
+              "build": "OK",
+              "lint": "OK",
+              "RQ_03": "CSS compilado sin line-height en .text-*",
+              "RQ_04": "cn() 8/8 casos",
+              "RQ_05": "contorno primario ≈5,2:1 sobre blanco",
+              "visual": "30/35 capturas idénticas; cambian login y V-09 (foco) y V-08 (ruido de datos) (corrección en F2: el diálogo y el menú de V-09 no se compararon en F1; verificados en F2 sin cambios)",
+              "e2e": "46/46"
+            }
+          },
+          {
+            "id": "F2",
+            "changelog": "CHG-0020",
+            "title": "Objetos canónicos, BackLink, SectionTitle y estados interactivos",
+            "requirements": [
+              "RQ-06",
+              "RQ-07",
+              "RQ-08"
+            ],
+            "status": "COMPLETED",
+            "executed_at": "2026-10-25",
+            "files": [
+              "front/src/styles/tokens.{form,table,layout,focus}.ts",
+              "front/src/lib/utils.ts",
+              "front/src/components/ui.tsx",
+              "front/src/components/risk/ProposalCardArticle.tsx",
+              "19 consumidores de inputClassName (solo importación)"
+            ],
+            "deviations": [
+              "Chips admite disabled por ítem para que el estado deshabilitado sea alcanzable.",
+              "Paso 2.5 añadido: ProposalCardArticle consume focusRingClassName."
+            ],
+            "verification": {
+              "build": "OK",
+              "lint": "OK",
+              "visual": "Sin diferencias atribuibles a F2 (persisten las de F1 y el ruido de datos de V-07/V-08)",
+              "e2e": "46/46"
+            }
+          },
+          {
+            "id": "F3",
+            "changelog": "CHG-0021",
+            "title": "Migración de la escala en 69 archivos (lotes 3.1-3.5)",
+            "requirements": [
+              "RQ-09"
+            ],
+            "status": "COMPLETED",
+            "executed_at": "2026-10-25",
+            "files": [
+              "69 archivos de front/src (66 iniciales + styles/tokens.{form,layout,table}.ts)"
+            ],
+            "metrics": {
+              "replacements": 418,
+              "text": 314,
+              "rounded": 104,
+              "remaining_arbitrary": 0
+            },
+            "deviations": [
+              "Skeleton: rounded-md -> rounded-bar (aprobado en la Etapa 2); rounded-sm de las barras de nivel se conserva.",
+              "ReporterOverview: tracking-tight en el título del banner, que a 24 px saltaba a dos líneas en 390 px."
+            ],
+            "verification": {
+              "build": "OK tras cada lote",
+              "lint": "OK",
+              "visual": "33/35 capturas cambian (previsto); alturas entre -1 y -20 px; banner corregido de +34 a -2 px; revisión lado a lado sin pérdida de estilos",
+              "overflow_390px": "0 px en 22 rutas",
+              "e2e": "46/46"
+            }
+          },
+          {
+            "id": "F4",
+            "changelog": "CHG-0022",
+            "title": "Adopción de Card, tableClassName, BackLink, pies y títulos",
+            "requirements": [
+              "RQ-10"
+            ],
+            "status": "COMPLETED",
+            "executed_at": "2026-10-25",
+            "adoption": {
+              "Card": 12,
+              "cardClassName": 2,
+              "BackLink": 4,
+              "fieldClassName.footer": 6,
+              "SectionTitle": 18,
+              "tableClassName": 5
+            },
+            "deviations": [
+              "Variante tableClassName.dense para cola N2 y Activos: el relleno canónico de 16px partía nombres y títulos en tablas de 8 columnas.",
+              "Comparador de versiones como excepción (aprobada).",
+              "Mis incidencias adopta solo tabla/cabecera/cuerpo; su relleno de columnas no coincidía con el patrón (corrección del análisis previo).",
+              "Tarjetas excluidas: aviso de orientación, KPI del Reportante y barra fija de decisión."
+            ],
+            "verification": {
+              "build": "OK",
+              "lint": "OK",
+              "visual": "Sin cambios frente a F3 salvo la cabecera de Activos (+8px); resto de diferencias = fechas de la semilla",
+              "overflow_390px": "0 px en 22 rutas",
+              "e2e": "46/46 con modelo de embeddings precargado; en stack frío 41/1/4 por H-01"
+            }
+          },
+          {
+            "id": "F5",
+            "changelog": "CHG-0023",
+            "title": "Protección en pnpm lint, documentación, capturas y auditoría",
+            "requirements": [
+              "RQ-11",
+              "RQ-12"
+            ],
+            "status": "COMPLETED",
+            "executed_at": "2026-10-26",
+            "scope_extensions": [
+              "Corrección de H-01 (aprobada por el usuario)",
+              "Correcciones de la auditoría qa-reviewer: 2 medias + 3 bajas (aprobadas por el usuario)"
+            ],
+            "files": [
+              "front/scripts/check-design-tokens.mjs",
+              "front/package.json",
+              "front/README.md",
+              "docs/manuales/capturas/login.png",
+              "back/apps/ai_config/{services,apps}.py",
+              "back/apps/ai_config/tests/test_preload.py",
+              "docker-compose.e2e.yml",
+              "back/README.md",
+              "front/src/components/risk/InteractiveRiskMatrix5x5Grid.tsx",
+              "front/src/components/ui.tsx",
+              "front/src/lib/utils.ts",
+              "front/src/styles/tokens.table.ts",
+              "6 componentes con monoClassName"
+            ],
+            "verification": {
+              "build": "OK",
+              "lint": "OK (con guardián; falla ante valor prohibido)",
+              "focus": "matriz 3px ink / 3px focus con teclado; botón inverso anillo blanco",
+              "h01": "primera prueba de conexión 39,6 s -> 0,41 s",
+              "backend_pytest": "152/152",
+              "e2e": "46/46 en stack recién creado (dos ejecuciones); ciclo completo 4 min 26 s, arranque 79 s"
+            }
+          }
+        ],
+        "out_of_scope": [
+          "Modo oscuro (dark:)",
+          "Cambios de paleta de color",
+          "Escala de espaciado",
+          "Rediseño de componentes"
+        ],
+        "visual_baseline": "Scratchpad de la sesión (visual/baseline, 35 capturas V-01..V-09 a 1440 y 390 px); fuera del repositorio",
+        "visual_known_noise": [
+          "V-08 Auditoría: crece con cada inicio de sesión",
+          "V-07 Documentos: hora de carga de los PDF de la semilla"
+        ],
+        "findings": [
+          {
+            "id": "H-01",
+            "status": "RESOLVED",
+            "summary": "Prueba E2E admin.spec.ts:175 (diagnóstico de conectividad IA) frágil: la carga en frío de sentence-transformers en el backend tarda ~38s y supera 60s con el worker Celery al 100% tras sembrar.",
+            "recommendation": "Precargar el modelo al arrancar el backend del stack E2E o ampliar el límite de esa prueba.",
+            "found_in": "CHG-0022",
+            "resolved_in": "CHG-0023"
+          },
+          {
+            "id": "H-02",
+            "status": "OPEN",
+            "summary": "La tabla de Activos se corta a 768px (columna de acciones oculta); previo a la refactorización.",
+            "recommendation": "Desplazamiento horizontal o paso a tarjetas hasta lg.",
+            "found_in": "CHG-0022"
+          },
+          {
+            "id": "QA-01",
+            "status": "OPEN",
+            "severity": "Baja",
+            "summary": "EmptyState siempre usa h3; puede saltar niveles dentro de Card sin h2.",
+            "found_in": "CHG-0023"
+          },
+          {
+            "id": "QA-02",
+            "status": "OPEN",
+            "severity": "Baja",
+            "summary": "Valores arbitrarios fuera de la escala: tracking-[0.08em] (menú) y focus:z-[70] (saltar al contenido).",
+            "found_in": "CHG-0023"
+          },
+          {
+            "id": "QA-03",
+            "status": "OPEN",
+            "severity": "Baja",
+            "summary": "Superficies blancas sin Card: KpiSection, AIConnectionPingCard, alertas/fieldsets de AIConfigFormView, VectorOutdatedAlert, RequirePermission.",
+            "found_in": "CHG-0023"
+          },
+          {
+            "id": "QA-04",
+            "status": "OPEN",
+            "severity": "Baja",
+            "summary": "Semántica menor: BackLink como button, section en PageHeader, span dentro de dl en ProposalCardArticle.",
+            "found_in": "CHG-0023"
+          },
+          {
+            "id": "QA-05",
+            "status": "OPEN",
+            "severity": "Baja",
+            "summary": "documents_rag/embeddings.py tiene un cargador/caché propio del modelo (doble carga potencial en el proceso web).",
+            "found_in": "CHG-0023"
+          }
+        ],
+        "completed_at": "2026-10-26"
       }
     ],
     "master_plans": {
@@ -2690,6 +3005,278 @@
           "agents/brain/project_memory.json"
         ],
         "file": "changelogs/entries/CHG-0013_2026-10-23_readme_submodulos_back_y_front.md"
+      },
+      {
+        "id": "CHG-0014",
+        "timestamp": "2026-10-24T10:00:00-05:00",
+        "type": "Gobernanza",
+        "summary": "Incorporación de 17 skills del hub centralizado Jaguilars5/my-skills (backend: django-drf-architecture, postgres-performance-patterns, redis-caching-patterns, openapi-documentation, python-clean-architecture, cascade-activation-lifecycle; shared: typescript-advanced-contracts, state-management-discipline, constants-no-magic-strings, git-commit-discipline, naming-conventions-standard, prompt-standardization, strict-code-quality, testing-playwright; react: tailwind-design-system, vite-bundle-optimization, reusable-design-tokens) por copia selectiva y simétrica en .claude/skills/ y .agents/skills/, con regla de precedencia frente a las invariantes y skills Core. Catálogo total: 35 skills. Sin impacto en código ni contratos.",
+        "contract_scenario": "N/A",
+        "modules": [],
+        "files": [
+          ".claude/skills/<17 skills>/SKILL.md",
+          ".agents/skills/<17 skills>/SKILL.md",
+          "agents/skills_index.md",
+          "CLAUDE.md",
+          "AGENTS.md",
+          "agents/brain/project_memory.json",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0014_2026-10-24_incorporacion_skills_hub_my_skills.md"
+        ],
+        "file": "changelogs/entries/CHG-0014_2026-10-24_incorporacion_skills_hub_my_skills.md"
+      },
+      {
+        "id": "CHG-0015",
+        "timestamp": "2026-10-24T11:00:00-05:00",
+        "type": "Frontend",
+        "summary": "Instalación de @playwright/test 1.64.1 como dependencia de desarrollo en front/ (pnpm, versión exacta) con navegador Chromium, playwright.config.ts (baseURL http://localhost:5173, webServer pnpm dev, trace on-first-retry), prueba de humo e2e/smoke.spec.ts sobre la vista pública de login (1/1 OK), scripts test:e2e, test:e2e:ui y test:e2e:report, include en tsconfig.node.json y exclusión de artefactos en .gitignore. sync-autoskills incorporó playwright-best-practices (currents-dev); catálogo total: 36 skills. Sin impacto en contratos, Mappers ni bundle de producción.",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-00-FRONTEND-SETUP"
+        ],
+        "files": [
+          "front/package.json",
+          "front/pnpm-lock.yaml",
+          "front/skills-lock.json",
+          "front/playwright.config.ts",
+          "front/e2e/smoke.spec.ts",
+          "front/tsconfig.node.json",
+          "front/.gitignore",
+          "front/README.md",
+          ".claude/skills/playwright-best-practices/",
+          ".agents/skills/playwright-best-practices/",
+          "agents/skills_index.md",
+          "CLAUDE.md",
+          "AGENTS.md",
+          "agents/brain/project_memory.json",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0015_2026-10-24_instalacion_playwright_pruebas_e2e.md"
+        ],
+        "file": "changelogs/entries/CHG-0015_2026-10-24_instalacion_playwright_pruebas_e2e.md"
+      },
+      {
+        "id": "CHG-0016",
+        "timestamp": "2026-10-25T01:30:00-05:00",
+        "type": "Fullstack",
+        "summary": "Suite E2E de Playwright que recorre los flujos de UI de los tres roles como una persona (escritura, clics, teclado, selector de archivos) contra el backend real, con stack Docker aislado y desechable (docker-compose.e2e.yml, proyecto riesgoti-e2e: BD tmpfs + seed_riesgoti, storage/ propio, API :8001, front :5174) que global-setup.ts levanta y destruye automáticamente (E2E_STACK=fresh|keep|reuse|off). 40 pruebas (setup de sesiones, smoke, auth, reporter, analyst, risk-workflow, admin) cubren INV-01, INV-02, INV-04 y INV-05; 40/40 en dos ejecuciones consecutivas. Sin cambios en el código de la aplicación ni en contratos.",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-00-FRONTEND-SETUP",
+          "MOD-00-BACKEND-SETUP"
+        ],
+        "files": [
+          "docker-compose.e2e.yml",
+          "front/playwright.config.ts",
+          "front/tsconfig.e2e.json",
+          "front/tsconfig.json",
+          "front/tsconfig.node.json",
+          "front/package.json",
+          "front/.gitignore",
+          "front/e2e/auth.setup.ts",
+          "front/e2e/auth.spec.ts",
+          "front/e2e/reporter.spec.ts",
+          "front/e2e/analyst.spec.ts",
+          "front/e2e/risk-workflow.spec.ts",
+          "front/e2e/admin.spec.ts",
+          "front/e2e/support/stack.ts",
+          "front/e2e/support/global-setup.ts",
+          "front/e2e/support/run.mjs",
+          "front/e2e/support/users.ts",
+          "front/e2e/support/ui.ts",
+          "front/e2e/support/files.ts",
+          "front/e2e/support/incidents.ts",
+          "front/README.md",
+          "back/README.md",
+          "CLAUDE.md",
+          "AGENTS.md",
+          "agents/brain/project_memory.json",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0016_2026-10-25_suite_e2e_flujos_ui_con_stack_docker_aislado.md"
+        ],
+        "file": "changelogs/entries/CHG-0016_2026-10-25_suite_e2e_flujos_ui_con_stack_docker_aislado.md"
+      },
+      {
+        "id": "CHG-0017",
+        "timestamp": "2026-10-25T10:00:00-05:00",
+        "type": "Gobernanza",
+        "summary": "Incorporación de la skill react-router-dom-patterns (grupo react) del hub Jaguilars5/my-skills por copia selectiva y simétrica en .claude/skills/ y .agents/skills/ (description entrecomillada), como prerrequisito de la migración de la navegación por hash (useHashSection) a React Router. Indexada en agents/skills_index.md §3 (#37) con regla de adaptación a la estructura vigente (constantes en front/src/constants/routes.constants.ts, RBAC con useAuthSession().hasPermission, INV-05). Catálogo total: 37 skills. Sin impacto en código ni contratos.",
+        "contract_scenario": "N/A",
+        "modules": [],
+        "files": [
+          ".claude/skills/react-router-dom-patterns/SKILL.md",
+          ".agents/skills/react-router-dom-patterns/SKILL.md",
+          "agents/skills_index.md",
+          "CLAUDE.md",
+          "AGENTS.md",
+          "agents/brain/project_memory.json",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0017_2026-10-25_incorporacion_skill_react_router_dom_patterns.md"
+        ],
+        "file": "changelogs/entries/CHG-0017_2026-10-25_incorporacion_skill_react_router_dom_patterns.md"
+      },
+      {
+        "id": "CHG-0018",
+        "timestamp": "2026-10-25T12:00:00-05:00",
+        "type": "Frontend",
+        "summary": "Migración completa de la navegación por hash (useHashSection, #/seccion) a React Router (react-router-dom 7.18.4, BrowserRouter) con URLs limpias. Rutas y constructores centralizados en src/constants/routes.constants.ts y textos del menú en navigation.constants.ts (react-router-dom-patterns + constants-no-magic-strings); guardias ProtectedRoute/GuestOnlyRoute (login con retorno a la ruta pedida) y PermissionRoute (RBAC, ADMIN sin /support por INV-05); AppShell con NavLink; detalles bajo su sección, eliminando PARENT y el sufijo -all. Suite E2E migrada a ROUTES compartido, con 6 pruebas nuevas de enrutado: 46/46. Sin cambios en contratos API, Zod, Mappers ni Redux.",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-00-FRONTEND-SETUP",
+          "MOD-08-FRONT-ADMIN-PORTAL",
+          "MOD-09-FRONT-REPORTER-PORTAL",
+          "MOD-10-FRONT-ANALYST-N2-AND-RISK-GOVERNANCE"
+        ],
+        "files": [
+          "front/package.json",
+          "front/pnpm-lock.yaml",
+          "front/src/constants/routes.constants.ts",
+          "front/src/constants/navigation.constants.ts",
+          "front/src/features/auth/ProtectedRoute.tsx",
+          "front/src/features/auth/PermissionRoute.tsx",
+          "front/src/hooks/useRouteId.ts",
+          "front/src/hooks/useHashSection.ts (eliminado)",
+          "front/src/components/layout/AppShell.tsx",
+          "front/src/components/layout/RouteViewport.tsx",
+          "front/src/components/layout/RouteIdParam.tsx",
+          "front/src/main.tsx",
+          "front/src/App.tsx",
+          "front/src/pages/admin/AdminPortal.tsx",
+          "front/src/pages/staff/AnalystPortal.tsx",
+          "front/src/pages/reporter/ReporterPortal.tsx",
+          "front/src/pages/admin/AdminDashboardPage.tsx",
+          "front/src/components/admin/SystemStatusArticle.tsx",
+          "front/e2e/support/routes.ts",
+          "front/e2e/support/ui.ts",
+          "front/e2e/navigation.spec.ts",
+          "front/e2e/{admin,analyst,auth,reporter,risk-workflow,smoke}.spec.ts",
+          "front/README.md",
+          "agents/skills_index.md",
+          "agents/brain/project_memory.json",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0018_2026-10-25_migracion_navegacion_react_router_rutas_centralizadas.md"
+        ],
+        "file": "changelogs/entries/CHG-0018_2026-10-25_migracion_navegacion_react_router_rutas_centralizadas.md"
+      },
+      {
+        "id": "CHG-0019",
+        "timestamp": "2026-10-25T14:00:00-05:00",
+        "type": "Frontend",
+        "summary": "Sistema de diseño F1 (roadmap v0.7): escala tipográfica de 9 tokens en px y 7 radios semánticos en @theme (con --text-*: initial para conservar el interlineado heredado), --color-focus y regla de foco en @layer base con contorno primario de 2 px (antes halo #bfdbfe ≈1,5:1 que forzaba border-radius), extendTailwindMerge con los tokens nuevos e inputs sin halo hexadecimal; ProposalCardArticle traslada el foco a la tarjeta. Build y lint OK, cn() 8/8, 30/35 capturas idénticas (cambia solo el foco), E2E 46/46.",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-11-FRONT-DESIGN-SYSTEM-TOKENS"
+        ],
+        "files": [
+          "front/src/index.css",
+          "front/src/lib/utils.ts",
+          "front/src/components/risk/ProposalCardArticle.tsx",
+          "front/roadmap/v0.7_refactorizacion_sistema_de_diseno_tokens_reutilizables.md",
+          "agents/brain/project_memory.json",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0019_2026-10-25_tokens_tema_foco_accesible_y_tailwind_merge.md"
+        ],
+        "file": "changelogs/entries/CHG-0019_2026-10-25_tokens_tema_foco_accesible_y_tailwind_merge.md"
+      },
+      {
+        "id": "CHG-0020",
+        "timestamp": "2026-10-25T16:00:00-05:00",
+        "type": "Frontend",
+        "summary": "Sistema de diseño F2 (roadmap v0.7): objetos canónicos en front/src/styles/ (tokens.form: inputClassName movido desde lib/utils y fieldClassName; tokens.table: tableClassName; tokens.layout: cardClassName, headerClassName, sectionTitleClassName, monoClassName, backLinkClassName; tokens.focus: focusRingClassName), componentes BackLink y SectionTitle, estados active/disabled en IconButton y Chips (disabled por ítem). ui.tsx consume los objetos; 19 consumidores de inputClassName cambian solo la importación. Sin cambios visuales; E2E 46/46.",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-11-FRONT-DESIGN-SYSTEM-TOKENS"
+        ],
+        "files": [
+          "front/src/styles/tokens.form.ts",
+          "front/src/styles/tokens.table.ts",
+          "front/src/styles/tokens.layout.ts",
+          "front/src/styles/tokens.focus.ts",
+          "front/src/lib/utils.ts",
+          "front/src/components/ui.tsx",
+          "front/src/components/risk/ProposalCardArticle.tsx",
+          "19 consumidores de inputClassName",
+          "front/roadmap/v0.7_refactorizacion_sistema_de_diseno_tokens_reutilizables.md",
+          "agents/brain/project_memory.json",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0020_2026-10-25_objetos_canonicos_de_clases_y_componentes_reutilizables.md"
+        ],
+        "file": "changelogs/entries/CHG-0020_2026-10-25_objetos_canonicos_de_clases_y_componentes_reutilizables.md"
+      },
+      {
+        "id": "CHG-0021",
+        "timestamp": "2026-10-25T18:00:00-05:00",
+        "type": "Frontend",
+        "summary": "Sistema de diseño F3 (roadmap v0.7): migración por codemod (5 lotes con build) de 418 valores arbitrarios (314 text-[Npx], 104 rounded*-[Npx]) en 69 archivos a la escala de tokens; medios píxeles unificados; Skeleton rounded-md -> rounded-bar; tracking-tight en el título del banner del Reportante para que no salte de línea en 390 px. 0 valores arbitrarios restantes, sin desbordamiento horizontal a 390 px, E2E 46/46.",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-11-FRONT-DESIGN-SYSTEM-TOKENS",
+          "MOD-08-FRONT-ADMIN-PORTAL",
+          "MOD-09-FRONT-REPORTER-PORTAL",
+          "MOD-10-FRONT-ANALYST-N2-AND-RISK-GOVERNANCE"
+        ],
+        "files": [
+          "69 archivos de front/src (components, pages, features, styles, App.tsx)",
+          "front/roadmap/v0.7_refactorizacion_sistema_de_diseno_tokens_reutilizables.md",
+          "agents/brain/project_memory.json",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0021_2026-10-25_migracion_escala_tipografica_y_radios_a_tokens.md"
+        ],
+        "file": "changelogs/entries/CHG-0021_2026-10-25_migracion_escala_tipografica_y_radios_a_tokens.md"
+      },
+      {
+        "id": "CHG-0022",
+        "timestamp": "2026-10-25T21:00:00-05:00",
+        "type": "Frontend",
+        "summary": "Sistema de diseño F4 (roadmap v0.7): adopción de las piezas reutilizables: 14 tarjetas (12 <Card>, 2 cardClassName), 4 BackLink, 6 fieldClassName.footer, 18 SectionTitle y tableClassName en 5 tablas, con nueva variante tableClassName.dense para la cola N2 y Activos (el relleno canónico partía líneas). Comparador de versiones como excepción. Sin cambios visuales salvo la cabecera de Activos (+8px). E2E 46/46 con el modelo de embeddings precargado; se documentan los hallazgos H-01 (prueba de diagnóstico IA frágil por carga en frío) y H-02 (tabla de Activos cortada a 768px, previo).",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-11-FRONT-DESIGN-SYSTEM-TOKENS"
+        ],
+        "files": [
+          "front/src/styles/tokens.table.ts",
+          "front/src/components/ui.tsx",
+          "14 archivos con tarjetas",
+          "4 páginas de detalle (BackLink)",
+          "6 modales (fieldClassName.footer)",
+          "17 archivos con SectionTitle",
+          "5 tablas",
+          "front/roadmap/v0.7_refactorizacion_sistema_de_diseno_tokens_reutilizables.md",
+          "agents/brain/project_memory.json",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0022_2026-10-25_adopcion_de_piezas_reutilizables_del_sistema_de_diseno.md"
+        ],
+        "file": "changelogs/entries/CHG-0022_2026-10-25_adopcion_de_piezas_reutilizables_del_sistema_de_diseno.md"
+      },
+      {
+        "id": "CHG-0023",
+        "timestamp": "2026-10-26T10:00:00-05:00",
+        "type": "Fullstack",
+        "summary": "Sistema de diseño F5 (cierre del roadmap v0.7): guardián check-design-tokens.mjs en pnpm lint, sección «Sistema de diseño» en front/README.md y captura login.png regenerada; corrección de H-01 (precarga del modelo de embeddings en el runserver del stack E2E mediante RIESGOTI_PRELOAD_EMBEDDING_MODEL: primera prueba de conexión 39,6 s -> 0,41 s); correcciones de la auditoría qa-reviewer (contorno de 3px de la celda seleccionada de la matriz 5x5 y foco distinguible, anillo blanco en la variante inverse por contraste 1,69:1, shadow-card en tailwind-merge, tableClassName.empty eliminado, monoClassName en 8 copias). E2E 46/46 en stack recién creado (4 min 26 s), backend 152/152.",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-11-FRONT-DESIGN-SYSTEM-TOKENS",
+          "MOD-00-BACKEND-SETUP"
+        ],
+        "files": [
+          "front/scripts/check-design-tokens.mjs",
+          "front/package.json",
+          "front/README.md",
+          "docs/manuales/capturas/login.png",
+          "back/apps/ai_config/{services,apps}.py",
+          "back/apps/ai_config/tests/test_preload.py",
+          "docker-compose.e2e.yml",
+          "back/README.md",
+          "front/src/components/risk/InteractiveRiskMatrix5x5Grid.tsx",
+          "front/src/components/ui.tsx",
+          "front/src/lib/utils.ts",
+          "front/src/styles/tokens.table.ts",
+          "6 componentes con monoClassName",
+          "front/roadmap/v0.7_refactorizacion_sistema_de_diseno_tokens_reutilizables.md",
+          "agents/brain/project_memory.json",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0023_2026-10-26_guardian_de_tokens_documentacion_auditoria_y_precarga_embeddings_e2e.md"
+        ],
+        "file": "changelogs/entries/CHG-0023_2026-10-26_guardian_de_tokens_documentacion_auditoria_y_precarga_embeddings_e2e.md"
       }
     ],
     "brain_access_policy": "El Brain es exclusivamente este archivo JSON, leído y editado directamente. No usar el servidor MCP memory (@modelcontextprotocol/server-memory): persiste en JSONL y corrompería este archivo (CHG-0004). Validar JSON tras cada edición."
@@ -2727,7 +3314,7 @@
   },
   "skills_registry": {
     "index_file": "agents/skills_index.md",
-    "last_autoskills_sync": "2026-10-22T07:13:00-05:00",
+    "last_autoskills_sync": "2026-10-25T12:00:00-05:00",
     "detected_stack": [
       "React",
       "TypeScript",
@@ -2737,7 +3324,9 @@
       "Django",
       "PostgreSQL",
       "React Hook Form",
-      "Zod"
+      "Zod",
+      "Playwright",
+      "React Router"
     ],
     "core_skills": [
       "sync-brain",
@@ -2759,15 +3348,77 @@
       "nodejs-backend-patterns",
       "nodejs-best-practices",
       "react-hook-form",
-      "zod"
-    ]
+      "zod",
+      "playwright-best-practices"
+    ],
+    "my_skills_hub": {
+      "source": "https://github.com/Jaguilars5/my-skills",
+      "source_commit": "8275dd6",
+      "installed_at": "2026-10-24T10:00:00-05:00",
+      "install_method": "Copia selectiva de SKILL.md en .claude/skills/ y .agents/skills/ (sin ejecutar el CLI del hub, que sobrescribiría sub-agentes, .mcp.json, Brain y CLAUDE.md). Description del frontmatter entrecomillada para YAML válido.",
+      "precedence": "Invariantes de dominio > agents/rules/clean_code_and_architecture.md > skills RiesgoTI Core > skills del hub. cascade-activation-lifecycle subordinada a INV-04; prompt-standardization complementa a iterative-change-tracker.",
+      "installed": [
+        "django-drf-architecture",
+        "postgres-performance-patterns",
+        "redis-caching-patterns",
+        "openapi-documentation",
+        "python-clean-architecture",
+        "cascade-activation-lifecycle",
+        "typescript-advanced-contracts",
+        "state-management-discipline",
+        "constants-no-magic-strings",
+        "git-commit-discipline",
+        "naming-conventions-standard",
+        "prompt-standardization",
+        "strict-code-quality",
+        "testing-playwright",
+        "tailwind-design-system",
+        "vite-bundle-optimization",
+        "reusable-design-tokens",
+        "react-router-dom-patterns"
+      ],
+      "later_additions": {
+        "react-router-dom-patterns": "CHG-0017 (2026-10-25), copia desde un clon local del hub realizado por el usuario"
+      }
+    },
+    "total_skills": 37
   },
   "project_status": {
     "all_modules_completed": true,
     "modules": "MOD-01..MOD-10 COMPLETED",
-    "frontend_roadmap": "v0.0..v0.6 COMPLETED",
+    "frontend_roadmap": "v0.0..v0.7 COMPLETED",
     "backend_roadmap": "v0.0..v0.6 COMPLETED",
-    "last_e2e": "2026-10-22 (flujos 1, 2, 4 y 5 OK; flujo 3 parcial por cuota de Gemini, verificado completo en v0.3)",
-    "last_docs_reorganization": "2026-10-23 (CHG-0009: docs/ centraliza bd.sql, hojas de ruta maestras y manuales; figma/ retirado)"
+    "last_e2e": "2026-10-26 (CHG-0023: 46/46 en stack recién creado, dos ejecuciones; ciclo completo 4 min 26 s con 79 s de arranque)",
+    "frontend_routing": {
+      "library": "react-router-dom 7.18.4 (BrowserRouter + Routes declarativas, URLs limpias)",
+      "constants": "front/src/constants/routes.constants.ts (ROUTE_PARAMS, ROUTE_PATHS, ROUTES) y front/src/constants/navigation.constants.ts (NAV_LABELS, NAV_GROUPS, PORTAL_NAV_ARIA_LABELS)",
+      "guards": "front/src/features/auth/ProtectedRoute.tsx (ProtectedRoute -> /login con state.from; GuestOnlyRoute) y front/src/features/auth/PermissionRoute.tsx (RBAC, redirige al inicio del portal; ADMIN sin /support, INV-05)",
+      "layout": "front/src/components/layout/{AppShell (NavLink), RouteViewport (remontaje y scroll por ruta), RouteIdParam (id de ruta por props)}.tsx + front/src/hooks/useRouteId.ts",
+      "routes": "/login, /home, /my-incidents[/:incidentId], /dashboard, /incidents[/:incidentId], /support[/:incidentId], /risks[/:riskId], /proposals[/:versionId], /assets, /matrix, /documents, /ai-config, /users, /roles, /audit, /account; '/' y rutas desconocidas -> inicio del portal",
+      "deployment": "El servidor de dist/ debe responder index.html a rutas desconocidas (SPA fallback); vite dev/preview ya lo hacen.",
+      "changelog": "CHG-0018"
+    },
+    "last_docs_reorganization": "2026-10-23 (CHG-0009: docs/ centraliza bd.sql, hojas de ruta maestras y manuales; figma/ retirado)",
+    "design_system": {
+      "roadmap": "front/roadmap/v0.7_refactorizacion_sistema_de_diseno_tokens_reutilizables.md",
+      "changelogs": [
+        "CHG-0019",
+        "CHG-0020",
+        "CHG-0021",
+        "CHG-0022",
+        "CHG-0023"
+      ],
+      "theme": "front/src/index.css (@theme): --text-2xs..3xl (11,12,13,14,15,16,18,24,28 px, sin line-height), --radius-{bar 4,inset 8,control 10,tile 12,card 14,card-mobile 18,sheet 22}, --color-focus; foco global en @layer base (outline 2px, offset 2px)",
+      "merge": "front/src/lib/utils.ts: extendTailwindMerge con text, radius y shadow propios",
+      "class_objects": "front/src/styles/tokens.{form,table,layout,focus}.ts (inputClassName, fieldClassName, tableClassName + dense, cardClassName, headerClassName, sectionTitleClassName, monoClassName, backLinkClassName, focusRingClassName)",
+      "components": "front/src/components/ui.tsx: Card, CardHeader, PageHeader, SectionTitle, BackLink, Field, Mono, IconButton, Chips (active/disabled)",
+      "guard": "front/scripts/check-design-tokens.mjs en pnpm lint (prohíbe text-[Npx], rounded*-[Npx] y hex en clases)",
+      "exceptions": [
+        "VersionCompareTable (relleno compacto)",
+        "OperationalGuidanceSection, ReporterOverview KPI y RiskDecisionActionFooter no son tarjetas estándar",
+        "Modo oscuro fuera de alcance"
+      ],
+      "docs": "front/README.md §4 «Sistema de diseño»"
+    }
   }
 }

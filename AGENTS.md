@@ -54,6 +54,7 @@ Cada reporte de incidencia (`INCIDENCIA`) desencadena **dos ramas asíncronas in
 * **Infraestructura Contenedorizada con Docker Compose (`docker-compose.yml`):**
   * Todo el entorno Backend y sus servicios de soporte corren en contenedores Docker: `db` (`postgres:16-alpine` en puerto `5432`), `redis` (`redis:7-alpine` en puerto `6379`), `pgadmin` (`dpage/pgadmin4` en `http://localhost:5050` con servidor preconfigurado en `back/docker/pgadmin/servers.json`), `backend` (`python:3.12-slim` en `http://localhost:8000`) y `celery_worker`.
   * Los comandos de gestión, migraciones y pruebas de Django se ejecutan mediante `docker compose exec backend python manage.py ...` y `docker compose exec backend pytest`.
+  * **Stack E2E aislado (`docker-compose.e2e.yml`, proyecto `riesgoti-e2e`):** BD en `tmpfs` + `seed_riesgoti` en cada arranque, `storage/` propio, API en `:8001` y front de pruebas en `:5174`. Lo levanta y destruye la suite Playwright (`cd front; pnpm test:e2e`, modos `E2E_STACK=fresh|keep|reuse|off`); nunca usar el stack de desarrollo para E2E porque las decisiones de riesgo son irreversibles.
 * **Fidelidad Estricta a `bd.sql` (`docs/bd.sql`):**
   * Todos los modelos Django DEBEN declarar explícitamente `class Meta: db_table = 'NOMBRE_TABLA'` y `db_column` exactos respetando el DDL de `bd.sql`.
   * Prohibido alterar nombres de tablas o columnas del esquema base; la única tabla técnica aditiva autorizada es `CONFIGURACION_IA_RAG` (`apps/ai_config/models.py`).
@@ -121,6 +122,31 @@ Cada reporte de incidencia (`INCIDENCIA`) desencadena **dos ramas asíncronas in
 16. `nodejs-best-practices`: Gestión determinista de paquetes, scripts y pruebas automatizadas.
 17. `react-hook-form`: Formularios con `useForm` + `zodResolver`, suscripciones optimizadas (`useWatch`, `useController`) y control de re-renderizados.
 18. `zod`: Esquemas de validación en `src/schemas/*.schema.ts`, `.superRefine()`, `safeParse` y tipos inferidos con `z.infer`.
+
+#### C. Skills del Hub Centralizado `my-skills` (`Jaguilars5/my-skills`, CHG-0014 — disparadores y precedencia en `/agents/skills_index.md` §3)
+19. `django-drf-architecture`: Servicios (escritura) y selectores (lectura) en Django/DRF, serializers delgados y ORM sin N+1.
+20. `postgres-performance-patterns`: Índices B-Tree/GIN/parciales, `EXPLAIN ANALYZE` y migraciones sin bloqueos en PostgreSQL.
+21. `redis-caching-patterns`: Cache-Aside, claves jerárquicas, TTL con jitter y bloqueos distribuidos sobre Redis.
+22. `openapi-documentation`: Contratos REST vivos con `drf-spectacular`, códigos RFC 9110 y esquema Bearer JWT.
+23. `python-clean-architecture`: Python 3.12 con tipado estricto (`mypy`), `ruff` y `pytest`.
+24. `cascade-activation-lifecycle`: Activación/desactivación segura de catálogos con dependientes (`409 Conflict`, `cascadeRelated=true`), siempre subordinada a la invariante 4.
+25. `typescript-advanced-contracts`: Contratos Wire vs. Dominio, Zod como fuente de tipos, uniones discriminadas exhaustivas y tipos *branded*.
+26. `state-management-discipline`: Qué estado va a Redux Toolkit / RTK Query y selectores memoizados.
+27. `constants-no-magic-strings`: Estados, rutas y textos centralizados en `*.constants.ts` con `as const`.
+28. `git-commit-discipline`: Commits semánticos atómicos en submódulos y raíz.
+29. `naming-conventions-standard`: Convenciones de nomenclatura y uso restringido de emojis.
+30. `prompt-standardization`: Refinamiento de requerimientos en especificaciones BDD; complementa a `iterative-change-tracker`.
+31. `strict-code-quality`: Cero `as any`, `import type`, semántica RFC 9110 y límites de complejidad en código nuevo o refactorizado.
+32. `testing-playwright`: Pruebas E2E por rol con Page Object Model y red interceptada.
+33. `tailwind-design-system`: Escala de tokens, `clsx` + `tailwind-merge` y accesibilidad WCAG AA.
+34. `vite-bundle-optimization`: *Code-splitting* con `React.lazy`, `manualChunks` y Core Web Vitals.
+35. `reusable-design-tokens`: Objetos canónicos de clases Tailwind para formularios, tablas y encabezados.
+
+#### D. Skills Auto-Instaladas Posteriores (`npx autoskills`, CHG-0015)
+36. `playwright-best-practices`: Guía detallada de Playwright (localizadores, aserciones, fixtures/POM, autenticación por rol, *mocking*, accesibilidad y CI) para `front/e2e/`; complementa a `testing-playwright`.
+
+#### E. Skills Posteriores del Hub `my-skills` (CHG-0017)
+37. `react-router-dom-patterns`: Rutas centralizadas en un objeto `ROUTES` con `as const`, guardia protegida por rol con `<Navigate>` + `<Outlet>` y layouts anidados; se aplica junto con `constants-no-magic-strings`.
 
 ### 4.3 Sub-agentes Especializados (`.agents/subagents/` y `.claude/agents/`)
 1. `db-architect`: Especialista en PostgreSQL, mapeo ORM de `bd.sql`, constraints, triggers y semillas.
