@@ -1,11 +1,27 @@
 ---
 name: constants-no-magic-strings
-description: "Prohibición estricta de textos hardcodeados y magic strings. Centralización en *.constants.ts con as const."
+description: "Prohibición de magic strings y números mágicos: los valores reutilizados cuyo cambio puede romper la aplicación (estados, roles, permisos, rutas, endpoints, límites, tiempos) se centralizan en *.constants.ts con as const. El texto visible de la interfaz permanece en el componente."
 ---
 
 # Erradicación de Strings Mágicos y Centralización de Constantes
 
-Esta habilidad prohíbe el uso de cadenas de texto y números mágicos dispersos por el código fuente, imponiendo una arquitectura de constantes inmutables y fuertemente tipadas.
+Esta habilidad prohíbe los *magic strings* y los números mágicos dispersos por el código fuente, imponiendo una arquitectura de constantes inmutables y fuertemente tipadas.
+
+**Qué se centraliza (valores):** todo lo que se reutiliza y cuyo cambio puede romper la aplicación si una de sus copias queda desalineada:
+
+- estados y enumeraciones de dominio (`bd.sql`, API);
+- roles y códigos de permiso;
+- rutas de navegación y endpoints REST;
+- *tags* de caché, acciones y modos o identificadores de interfaz;
+- números con significado: límites de campos y archivos, intervalos de *polling*, tiempos de espera y tamaños;
+- claves de almacenamiento, eventos y códigos de error.
+
+**Qué NO se centraliza (texto visible):** títulos, párrafos, etiquetas, `aria-*`, `title`, `placeholder`, *toasts* y `<PageMeta>` permanecen escritos en el componente, la página o el *hook* que los muestra. Así se identifica de un vistazo de qué trata cada vista sin abrir una constante, y cambiar un texto no rompe la aplicación. Se admiten dos excepciones porque dependen de un valor:
+
+- los mapas de etiquetas indexados por una enumeración (`Record<EstadoX, string>`, que obliga a cubrir cada valor nuevo);
+- los mensajes de validación que interpolan un límite centralizado.
+
+En RiesgoTI estas excepciones viven en `labels.constants.ts` y `validation.constants.ts` (decisión AUD-0001 R-03, CHG-0033).
 
 ---
 
@@ -16,6 +32,9 @@ Esta habilidad prohíbe el uso de cadenas de texto y números mágicos dispersos
 - ❌ Códigos de error y mensajes de validación hardcodeados en llamadas o respuestas: `res.status(409).json({ code: 'ALREADY_EXISTS' })`.
 - ❌ Rutas de navegación dispersas: `<Link to="/admin/catalogs/products">`.
 - ❌ Números mágicos sin contexto: `if (attempts > 5)` o `setTimeout(fn, 86400000)`.
+- ❌ Endpoints REST escritos a mano: `fetch('/api/v1/incidencias/')` o `url: 'incidencias/'` en un servicio.
+
+> El texto visible no entra en esta lista: `<h1>Registro de riesgos</h1>` o `toast.success('Usuario creado')` son correctos.
 
 ---
 

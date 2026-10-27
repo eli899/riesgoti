@@ -132,7 +132,7 @@ Cada reporte de incidencia (`INCIDENCIA`) desencadena **dos ramas asíncronas in
 24. `cascade-activation-lifecycle`: Activación/desactivación segura de catálogos con dependientes (`409 Conflict`, `cascadeRelated=true`), siempre subordinada a la invariante 4.
 25. `typescript-advanced-contracts`: Contratos Wire vs. Dominio, Zod como fuente de tipos, uniones discriminadas exhaustivas y tipos *branded*.
 26. `state-management-discipline`: Qué estado va a Redux Toolkit / RTK Query y selectores memoizados.
-27. `constants-no-magic-strings`: Estados, rutas y textos centralizados en `*.constants.ts` con `as const`.
+27. `constants-no-magic-strings`: Valores reutilizados cuyo cambio puede romper la app (estados, roles, permisos, rutas, endpoints, límites y tiempos) centralizados en `*.constants.ts` con `as const`; el texto visible permanece en el componente (AUD-0001 R-03).
 28. `git-commit-discipline`: Commits semánticos atómicos en submódulos y raíz.
 29. `naming-conventions-standard`: Convenciones de nomenclatura y uso restringido de emojis.
 30. `prompt-standardization`: Refinamiento de requerimientos en especificaciones BDD; complementa a `iterative-change-tracker`.

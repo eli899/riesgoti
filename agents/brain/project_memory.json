@@ -1,7 +1,7 @@
 {
   "project": "RiesgoTI",
   "version": "1.0.0",
-  "last_updated": "2026-10-26T10:00:00-05:00",
+  "last_updated": "2026-10-26T09:00:00-05:00",
   "standards_alignment": [
     "ISO/IEC 27005:2022 (Gestión de Riesgos de Seguridad de la Información)",
     "ISO/IEC 27001:2022 (Sistema de Gestión de Seguridad de la Información - SGSI y SoD)",
@@ -3277,6 +3277,227 @@
           "changelogs/entries/CHG-0023_2026-10-26_guardian_de_tokens_documentacion_auditoria_y_precarga_embeddings_e2e.md"
         ],
         "file": "changelogs/entries/CHG-0023_2026-10-26_guardian_de_tokens_documentacion_auditoria_y_precarga_embeddings_e2e.md"
+      },
+      {
+        "id": "CHG-0024",
+        "timestamp": "2026-10-25T10:30:00-05:00",
+        "type": "Fullstack",
+        "summary": "Fase 1 de AUD-0001 (magic strings): estados, roles, permisos RBAC, acciones de auditoría y proveedores de IA centralizados en front/src/constants/{domain,rbac,audit}.constants.ts (as const + tipos derivados; api.types.ts y domain.types.ts sin uniones duplicadas; z.nativeEnum en Zod) y en StrEnum del backend (accounts/rbac.py; constants.py en audit, incidents, risks, documents_rag y ai_config) sin choices= en modelos ni migraciones. 40 constantes redeclaradas eliminadas; regla SoD con una fuente por capa; AUDIT_ACTION_LABEL tipado con AuditAction (6 acciones que se mostraban en bruto ganan etiqueta). Escenario A. tsc, lint y build OK; backend 152/152; E2E 46/46.",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-01 (RBAC)",
+          "Transversal: documentos RAG, incidencias, riesgos, auditoría y portales"
+        ],
+        "files": [
+          "front/src/constants/{domain,rbac,audit}.constants.ts",
+          "front/src/types/{api,domain}.types.ts",
+          "front/src/schemas/*.schema.ts (5)",
+          "front/src/lib/labels.ts",
+          "62 archivos de front/src (hooks, mappers, páginas y componentes)",
+          "back/apps/accounts/rbac.py",
+          "back/apps/{audit,incidents,risks,documents_rag,ai_config}/constants.py",
+          "25 archivos de back/apps (servicios, vistas, serializers, seed RBAC, adaptadores LLM/embeddings)",
+          "docs/auditorias/AUD-0001_2026-10-25_magic_strings_y_constantes.md",
+          "changelogs/INDEX.md",
+          "agents/brain/project_memory.json",
+          "changelogs/entries/CHG-0024_2026-10-25_centralizacion_de_constantes_de_dominio_rbac_y_auditoria.md"
+        ],
+        "file": "changelogs/entries/CHG-0024_2026-10-25_centralizacion_de_constantes_de_dominio_rbac_y_auditoria.md"
+      },
+      {
+        "id": "CHG-0025",
+        "timestamp": "2026-10-25T12:00:00-05:00",
+        "type": "Fullstack",
+        "summary": "Fase 2 de AUD-0001: contrato de red RTK Query en front/src/constants/api.constants.ts (API_ENDPOINTS, API_TAGS, HTTP_METHODS, DOCUMENT_ACTIONS, AUTH_ENDPOINTS_WITHOUT_REFRESH), polling y tiempos en timing.constants.ts (POLLING_INTERVALS_MS: documentos 3000, orientación 2500, estratégica 5000, reportante 5000, cola N2 15000), modos y límites en ui.constants.ts, bandejas RISK_INBOXES/INCIDENT_INBOXES en domain.constants.ts. Backend: config/constants.py (OpenApiTag, IO_BLOCK_BYTES, MAX_ERROR_CHARS), BandejaRiesgo/BandejaIncidencia, CORRECTABLE_FIELDS y MIN_* en risks/constants.py, LLM_PING_TIMEOUT_SECONDS/EMBEDDING_TIMEOUT_SECONDS, CELERY_AI_TASK_SOFT_TIME_LIMIT/CELERY_AI_TASK_TIME_LIMIT en settings. Escenario A: OpenAPI idéntico. tsc, lint y build OK; backend 152/152; E2E 46/46.",
+        "contract_scenario": "A",
+        "modules": [
+          "Transversal: servicios RTK Query, hooks con polling, bandejas, OpenAPI, ingesta documental, tareas Celery"
+        ],
+        "files": [
+          "front/src/constants/{api,timing,ui}.constants.ts",
+          "front/src/constants/domain.constants.ts",
+          "front/src/app/api/*.ts (5)",
+          "33 archivos de front/src",
+          "back/config/constants.py",
+          "back/config/{settings,views}.py",
+          "back/apps/{risks,incidents}/constants.py",
+          "19 archivos de back/apps y back/config",
+          "docs/auditorias/AUD-0001_2026-10-25_magic_strings_y_constantes.md",
+          "changelogs/INDEX.md",
+          "agents/brain/project_memory.json",
+          "changelogs/entries/CHG-0025_2026-10-25_centralizacion_de_contrato_de_red_tiempos_y_constantes_duplicadas.md"
+        ],
+        "file": "changelogs/entries/CHG-0025_2026-10-25_centralizacion_de_contrato_de_red_tiempos_y_constantes_duplicadas.md"
+      },
+      {
+        "id": "CHG-0026",
+        "timestamp": "2026-10-25T14:00:00-05:00",
+        "type": "Fullstack",
+        "summary": "Fase 3 de AUD-0001: front/src/constants/validation.constants.ts (FIELD_LIMITS, FILE_LIMITS, BYTES_PER_MB, VALIDATION_MESSAGES con límites interpolados) consumido por los 8 esquemas Zod y los formularios de documento, incidencia y matriz; backend con messages.py en accounts, ai_config, assets_matrix, documents_rag, incidents y risks, column_max_length(Model, campo) en config/constants.py para los max_length de columnas y límites de negocio en constants.py por app (accounts y assets_matrix nuevos). Escenario A: OpenAPI y mensajes idénticos. Hallazgo R-02 (mínimos solo en frontend) pendiente de decisión. tsc, lint y build OK; backend 152/152; E2E 46/46 (reintento tras fallo de arranque de Vite).",
+        "contract_scenario": "A",
+        "modules": [
+          "Transversal: esquemas Zod, Input Serializers DRF, servicios con errores de negocio"
+        ],
+        "files": [
+          "front/src/constants/validation.constants.ts",
+          "front/src/schemas/*.schema.ts (8)",
+          "front/src/components/admin/{DocumentUploadModal,PublishMatrixDialog}.tsx",
+          "front/src/components/reporter/CreateIncidentFormModal.tsx",
+          "back/apps/*/messages.py (6)",
+          "back/apps/{accounts,assets_matrix}/constants.py",
+          "back/apps/{ai_config,documents_rag,incidents,risks}/constants.py",
+          "back/config/constants.py",
+          "back/apps/*/serializers.py (6)",
+          "back/apps/*/services.py (6)",
+          "back/apps/incidents/views.py",
+          "docs/auditorias/AUD-0001_2026-10-25_magic_strings_y_constantes.md",
+          "changelogs/INDEX.md",
+          "agents/brain/project_memory.json",
+          "changelogs/entries/CHG-0026_2026-10-25_validacion_alineada_y_mensajes_de_error_centralizados.md"
+        ],
+        "file": "changelogs/entries/CHG-0026_2026-10-25_validacion_alineada_y_mensajes_de_error_centralizados.md"
+      },
+      {
+        "id": "CHG-0027",
+        "timestamp": "2026-10-25T15:00:00-05:00",
+        "file": "changelogs/entries/CHG-0027_2026-10-25_textos_de_interfaz_lote_comun_y_etiquetas.md",
+        "summary": "Fase 4 lote 4a: front/src/constants/copy/common.constants.ts (COMMON_COPY; SHARED con los 49 textos repetidos entre módulos) para componentes base, guardias, utilidades y mappers; lib/labels.ts trasladado a constants/labels.constants.ts. Codemod sobre el AST de TypeScript. 59 textos verificados. E2E 46/46.",
+        "files": [
+          "front/src/constants/copy/common.constants.ts",
+          "front/src/constants/labels.constants.ts",
+          "front/src/components/{ui,AsyncContent,CitationDrawer}.tsx",
+          "front/src/components/{layout,dashboard}/*",
+          "front/src/lib/{format,apiErrors}.ts",
+          "front/src/mappers/{admin,common}.mapper.ts",
+          "changelogs/INDEX.md",
+          "agents/brain/project_memory.json",
+          "changelogs/entries/CHG-0027_2026-10-25_textos_de_interfaz_lote_comun_y_etiquetas.md"
+        ],
+        "type": "Frontend",
+        "contract_scenario": "A",
+        "modules": [
+          "Transversal del frontend: textos de interfaz (Fase 4 de AUD-0001)"
+        ]
+      },
+      {
+        "id": "CHG-0028",
+        "timestamp": "2026-10-25T16:00:00-05:00",
+        "file": "changelogs/entries/CHG-0028_2026-10-25_textos_de_interfaz_lote_acceso_reportante_e_incidencias.md",
+        "summary": "Fase 4 lote 4b: copy/{auth,reporter,incidents}.constants.ts (AUTH_COPY, REPORTER_COPY, INCIDENT_COPY) para acceso, portal del Reportante y componentes de incidencia; codemod con segunda pasada, claves que respetan el valor existente y verificación posicional. 204 textos verificados. E2E 46/46.",
+        "files": [
+          "front/src/constants/copy/{auth,reporter,incidents}.constants.ts",
+          "front/src/components/{auth,reporter,incidents}/*",
+          "front/src/pages/{LoginPage,AccountPage,RolePortalPendingPage}.tsx",
+          "front/src/pages/reporter/*",
+          "changelogs/INDEX.md",
+          "agents/brain/project_memory.json",
+          "changelogs/entries/CHG-0028_2026-10-25_textos_de_interfaz_lote_acceso_reportante_e_incidencias.md"
+        ],
+        "type": "Frontend",
+        "contract_scenario": "A",
+        "modules": [
+          "Transversal del frontend: textos de interfaz (Fase 4 de AUD-0001)"
+        ]
+      },
+      {
+        "id": "CHG-0029",
+        "timestamp": "2026-10-25T17:00:00-05:00",
+        "file": "changelogs/entries/CHG-0029_2026-10-25_textos_de_interfaz_lote_atencion_n2_y_analista.md",
+        "summary": "Fase 4 lote 4c: copy/staff.constants.ts (STAFF_COPY) para cola y atención N2, filtros, propuestas pendientes y resumen del analista. 126 textos verificados. E2E 46/46.",
+        "files": [
+          "front/src/constants/copy/staff.constants.ts",
+          "front/src/components/staff/*",
+          "front/src/pages/staff/*",
+          "front/src/hooks/incidents/{useSupportCaseAttention,useAnalystSummary}.ts",
+          "changelogs/INDEX.md",
+          "agents/brain/project_memory.json",
+          "changelogs/entries/CHG-0029_2026-10-25_textos_de_interfaz_lote_atencion_n2_y_analista.md"
+        ],
+        "type": "Frontend",
+        "contract_scenario": "A",
+        "modules": [
+          "Transversal del frontend: textos de interfaz (Fase 4 de AUD-0001)"
+        ]
+      },
+      {
+        "id": "CHG-0030",
+        "timestamp": "2026-10-25T18:00:00-05:00",
+        "file": "changelogs/entries/CHG-0030_2026-10-25_textos_de_interfaz_lote_gobierno_de_riesgos.md",
+        "summary": "Fase 4 lote 4d: copy/risks.constants.ts (RISK_COPY) para el gobierno de riesgos. 252 textos verificados. E2E 46/46.",
+        "files": [
+          "front/src/constants/copy/risks.constants.ts",
+          "front/src/components/risk/*",
+          "front/src/pages/risk/*",
+          "front/src/hooks/risks/*",
+          "changelogs/INDEX.md",
+          "agents/brain/project_memory.json",
+          "changelogs/entries/CHG-0030_2026-10-25_textos_de_interfaz_lote_gobierno_de_riesgos.md"
+        ],
+        "type": "Frontend",
+        "contract_scenario": "A",
+        "modules": [
+          "Transversal del frontend: textos de interfaz (Fase 4 de AUD-0001)"
+        ]
+      },
+      {
+        "id": "CHG-0031",
+        "timestamp": "2026-10-26T09:00:00-05:00",
+        "file": "changelogs/entries/CHG-0031_2026-10-26_textos_de_interfaz_lote_administracion.md",
+        "summary": "Fase 4 lote 4e (cierre): copy/admin.constants.ts (ADMIN_COPY) para el portal del Administrador y LLM_PROVIDER_LABEL/EMBEDDING_PROVIDER_LABEL en labels.constants.ts. Inventario de front/src: 998 textos en 96 archivos -> 0. E2E 46/46.",
+        "files": [
+          "front/src/constants/copy/admin.constants.ts",
+          "front/src/constants/labels.constants.ts",
+          "front/src/components/admin/*",
+          "front/src/pages/admin/*",
+          "front/src/hooks/admin/*",
+          "changelogs/INDEX.md",
+          "agents/brain/project_memory.json",
+          "changelogs/entries/CHG-0031_2026-10-26_textos_de_interfaz_lote_administracion.md"
+        ],
+        "type": "Frontend",
+        "contract_scenario": "A",
+        "modules": [
+          "Transversal del frontend: textos de interfaz (Fase 4 de AUD-0001)"
+        ]
+      },
+      {
+        "id": "CHG-0032",
+        "timestamp": "2026-10-26T19:00:00-05:00",
+        "file": "changelogs/entries/CHG-0032_2026-10-26_permisos_rbac_en_guardias_de_ruta.md",
+        "summary": "Fase 5 lote 5a limitado a valores: los 11 códigos de permiso de PermissionRoute en AdminPortal y AnalystPortal pasan a PERMISSIONS.X. Por decisión del usuario (AUD-0001 R-03) el texto visible permanece en los componentes; lotes 5b a 5e no ejecutados.",
+        "files": [
+          "front/src/pages/admin/AdminPortal.tsx",
+          "front/src/pages/staff/AnalystPortal.tsx"
+        ]
+      },
+      {
+        "id": "CHG-0033",
+        "timestamp": "2026-10-26T19:45:00-05:00",
+        "file": "changelogs/entries/CHG-0033_2026-10-26_reversion_textos_de_interfaz_a_componentes.md",
+        "summary": "Reversión de la Fase 4 de AUD-0001 (CHG-0027 a CHG-0031): codemod AST con type checker que devuelve 962 referencias a copy/* a texto literal en 95 archivos y elimina src/constants/copy/. Se conservan labels.constants.ts y validation.constants.ts. 0 textos visibles perdidos o nuevos frente a HEAD; tsc, lint, build y E2E 46/46.",
+        "files": [
+          "front/src/constants/copy/* (eliminado)",
+          "front/src/components/**",
+          "front/src/pages/**",
+          "front/src/hooks/**",
+          "front/src/mappers/**",
+          "front/src/lib/**",
+          "front/src/features/auth/RequirePermission.tsx",
+          "front/src/App.tsx"
+        ]
+      },
+      {
+        "id": "CHG-0034",
+        "timestamp": "2026-10-26T20:00:00-05:00",
+        "file": "changelogs/entries/CHG-0034_2026-10-26_alcance_de_constants_no_magic_strings.md",
+        "summary": "Alcance de constants-no-magic-strings: se centralizan los valores reutilizados cuyo cambio puede romper la app (estados, roles, permisos, rutas, endpoints, límites, tiempos); el texto visible permanece en el componente, salvo mapas de etiquetas por enumeración y mensajes que interpolan límites (AUD-0001 R-03). Adaptación local de una skill del hub my-skills.",
+        "files": [
+          ".claude/skills/constants-no-magic-strings/SKILL.md",
+          ".agents/skills/constants-no-magic-strings/SKILL.md",
+          "CLAUDE.md",
+          "AGENTS.md",
+          "agents/skills_index.md"
+        ]
       }
     ],
     "brain_access_policy": "El Brain es exclusivamente este archivo JSON, leído y editado directamente. No usar el servidor MCP memory (@modelcontextprotocol/server-memory): persiste en JSONL y corrompería este archivo (CHG-0004). Validar JSON tras cada edición."
@@ -3388,7 +3609,7 @@
     "modules": "MOD-01..MOD-10 COMPLETED",
     "frontend_roadmap": "v0.0..v0.7 COMPLETED",
     "backend_roadmap": "v0.0..v0.6 COMPLETED",
-    "last_e2e": "2026-10-26 (CHG-0023: 46/46 en stack recién creado, dos ejecuciones; ciclo completo 4 min 26 s con 79 s de arranque)",
+    "last_e2e": "2026-10-26 (CHG-0031: 46/46 en stack recién creado)",
     "frontend_routing": {
       "library": "react-router-dom 7.18.4 (BrowserRouter + Routes declarativas, URLs limpias)",
       "constants": "front/src/constants/routes.constants.ts (ROUTE_PARAMS, ROUTE_PATHS, ROUTES) y front/src/constants/navigation.constants.ts (NAV_LABELS, NAV_GROUPS, PORTAL_NAV_ARIA_LABELS)",
@@ -3419,6 +3640,14 @@
         "Modo oscuro fuera de alcance"
       ],
       "docs": "front/README.md §4 «Sistema de diseño»"
+    },
+    "constants_governance": {
+      "audit": "docs/auditorias/AUD-0001_2026-10-25_magic_strings_y_constantes.md",
+      "status": "Fases 1 a 3 aplicadas (CHG-0024 a CHG-0026). Fase 4 (textos de UI en copy/*) aplicada en CHG-0027 a CHG-0031 y revertida en CHG-0033 por decisión del usuario (R-03). Fase 5: solo lote 5a (permisos de guardias de ruta, CHG-0032); lotes 5b a 5e no ejecutados. Hallazgo R-02 (mínimos solo en frontend) pendiente de decisión",
+      "frontend": "front/src/constants/domain.constants.ts (enumeraciones de bd.sql y agrupaciones), rbac.constants.ts (ROLES, PERMISSIONS, SOD_RISK_PERMISSIONS, ADMINISTRATIVE_PERMISSIONS, ADMIN_REQUIRED_PERMISSIONS), audit.constants.ts (AUDIT_ACTIONS); api.constants.ts (API_ENDPOINTS, API_TAGS, HTTP_METHODS, DOCUMENT_ACTIONS), timing.constants.ts (POLLING_INTERVALS_MS, UI_TIMINGS, TIME_UNITS), ui.constants.ts (RISK_MATRIX, DASHBOARD_LIMITS, FILTER_ALL, SUPPORT_VIEW_MODES, MATRIX_TABS, FORM_ERROR_KEYS); validation.constants.ts (FIELD_LIMITS, FILE_LIMITS, BYTES_PER_MB, VALIDATION_MESSAGES); labels.constants.ts (antes lib/labels.ts) con LLM_PROVIDER_LABEL y EMBEDDING_PROVIDER_LABEL",
+      "backend": "StrEnum (Python 3.12): apps/accounts/rbac.py (RolCodigo, CodigoPermiso, conjuntos SoD como str), apps/audit/constants.py (AccionAuditoria), apps/incidents/constants.py, apps/risks/constants.py, apps/documents_rag/constants.py, apps/ai_config/constants.py; no se asignan como choices= en modelos; config/constants.py (OpenApiTag, IO_BLOCK_BYTES, MAX_ERROR_CHARS); BandejaRiesgo/BandejaIncidencia; límites Celery CELERY_AI_TASK_SOFT_TIME_LIMIT/CELERY_AI_TASK_TIME_LIMIT en settings; apps/*/messages.py (mensajes de error de negocio como plantillas str.format); column_max_length(Model, campo) en config/constants.py",
+      "rule": "Los valores de las constantes front y back deben coincidir 1:1; las pruebas conservan literales para verificar el contrato real",
+      "ui_text_policy": "El texto visible (JSX, aria-*, title, placeholder, label, toasts, PageMeta) permanece literal en el componente, página o hook que lo muestra; las constantes son solo para valores (estados, permisos, roles, rutas, límites), labels.constants.ts (etiquetas de enumeraciones) y validation.constants.ts. La E2E conserva textos literales en sus localizadores. Decisión del usuario 2026-10-26 (AUD-0001 R-03, CHG-0033). Skill constants-no-magic-strings ajustada en CHG-0034."
     }
   }
 }

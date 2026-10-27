@@ -6,6 +6,7 @@
 | **Skill de referencia** | `constants-no-magic-strings` (complementada por `naming-conventions-standard`, `typescript-advanced-contracts` y `react-router-dom-patterns`) |
 | **Alcance** | `front/src/**` (147 archivos `.ts`/`.tsx`), `front/e2e/**`, `back/apps/**` (excluye `migrations/`) |
 | **Tipo** | Auditoría de solo lectura. No se modificó código. La remediación debe ejecutarse por fases bajo `iterative-change-tracker`. |
+| **Estado de la remediación** | Fase 1 aplicada en `CHG-0024`, Fase 2 en `CHG-0025` y Fase 3 en `CHG-0026` (2026-10-25); Fase 4 aplicada en `CHG-0027` a `CHG-0031` y **revertida** en `CHG-0033` (2026-10-26) por decisión del usuario: el texto visible permanece en los componentes (ver R-03). Fase 5: lote 5a limitado a los permisos de las guardias de ruta (`CHG-0032`); lotes 5b a 5e no ejecutados. Ver §8 para hallazgos surgidos durante la remediación. |
 | **Método** | Barrido con `grep`/`ripgrep` por patrones (comparaciones contra literales, uniones de tipos literales, `toast.*`, `z.*().min(n, '...')`, `required_permission = '...'`, `ValidationError({...: '...'})`, `pollingInterval`, `setTimeout`, `slice(0, n)`) y revisión manual de una muestra de cada categoría. Los conteos de textos de UI son aproximados (heurística). |
 
 ---
@@ -132,7 +133,9 @@ Hay ~550 textos visibles en ~85 archivos: contenido JSX, `aria-label`/`aria-desc
 
 También hay textos de respaldo en mappers: `'Usuario eliminado'` (`mappers/admin.mapper.ts:376`), `'Usuario no disponible'` (`mappers/common.mapper.ts:12`) y `'Activo fuera del catálogo'` (`hooks/incidents/useAnalystSummary.ts:45`, repetido dos veces en la misma línea). Las paginaciones de `components/ui.tsx` (`'Anterior'`, `'Siguiente'`) y `lib/format.ts:14` (`'Menos de 1 h'`, `' h'`, `' d'`) se repiten en toda la app.
 
-**Corrección.** Centralizar los textos por módulo en `src/constants/copy/{common,incidents,risks,admin,auth}.constants.ts` (`as const`), con claves semánticas (`INCIDENT_COPY.DETAIL.PAGE_TITLE`). Prioridad: (1) textos repetidos y de componentes compartidos (`ui.tsx`, `AsyncContent`, `CitationDrawer`), (2) `<PageMeta>` y `aria-*`, (3) el resto por módulo. No se propone i18n: la app tiene un solo idioma. Un objeto de textos centralizado deja preparado el camino si se necesita en el futuro.
+**Decisión (2026-10-26, R-03):** no se aplica; el texto visible permanece en el componente o la página.
+
+**Corrección propuesta originalmente.** Centralizar los textos por módulo en `src/constants/copy/{common,incidents,risks,admin,auth}.constants.ts` (`as const`), con claves semánticas (`INCIDENT_COPY.DETAIL.PAGE_TITLE`). Prioridad: (1) textos repetidos y de componentes compartidos (`ui.tsx`, `AsyncContent`, `CitationDrawer`), (2) `<PageMeta>` y `aria-*`, (3) el resto por módulo. No se propone i18n: la app tiene un solo idioma. Un objeto de textos centralizado deja preparado el camino si se necesita en el futuro.
 
 ### F-08 — Mensajes de *toast* y de bloqueo en hooks (Media)
 
@@ -140,7 +143,9 @@ Hay ~60 mensajes de éxito y error en 13 hooks. Por ejemplo, `useSupportCaseAtte
 
 `useKnowledgeBaseManager.ts:26-30` y `useRiskDecisionFlow.ts:15-17` ya usan mapas por acción. Ese es el patrón que debe generalizarse.
 
-**Corrección.** Crear `src/constants/messages/*.messages.constants.ts`, o una sección `TOASTS` dentro de cada archivo `copy/*`.
+**Decisión (2026-10-26, R-03):** no se aplica; los mensajes de *toast* permanecen en cada hook.
+
+**Corrección propuesta originalmente.** Crear `src/constants/messages/*.messages.constants.ts`, o una sección `TOASTS` dentro de cada archivo `copy/*`.
 
 ### F-09 — Mensajes y límites de validación Zod (Media)
 
@@ -177,7 +182,7 @@ Las constantes de *polling* (`DOCUMENT_POLLING_MS`, `GUIDANCE_POLLING_MS`, `STRA
 
 ### F-12 — Suite E2E (Baja)
 
-Las rutas ya se importan de `routes.constants.ts`. Sin embargo, ~295 localizadores (`getByRole(..., { name: '...' })`, `getByText('...')`, `getByLabel('...')`) repiten textos de la UI. Cuando F-07 esté resuelto, los *Page Objects* deben importar los mismos objetos `copy/*`. Así un cambio de texto no rompe la suite. Las cuentas de prueba y los estados esperados deben reutilizar `ROLES`, `domain.constants.ts` y las credenciales del *seed* centralizadas.
+Las rutas ya se importan de `routes.constants.ts`. Sin embargo, ~295 localizadores (`getByRole(..., { name: '...' })`, `getByText('...')`, `getByLabel('...')`) repiten textos de la UI. Con la decisión R-03 los localizadores conservan sus textos literales: la suite detecta cualquier cambio de texto visible. Las cuentas de prueba y los estados esperados deben reutilizar `ROLES`, `domain.constants.ts` y las credenciales del *seed* centralizadas.
 
 ---
 
@@ -336,11 +341,11 @@ Cada fase es una iteración independiente bajo `iterative-change-tracker` (anál
 
 | Fase | Contenido | Hallazgos | Riesgo | Verificación |
 | :--- | :--- | :--- | :--- | :--- |
-| **1 — Contrato de dominio** | `domain.constants.ts`, `rbac.constants.ts`, `audit.constants.ts`. Derivar tipos y reemplazar comparaciones en los 39 archivos. Backend: `rbac.py`, `audit/constants.py`, `constants.py` por app y eliminación de redeclaraciones. | F-01, F-02, F-03, F-04, B-01, B-02, B-03 | Medio (toca invariantes INV-02/04/05) | `pnpm typecheck`, `pnpm lint`, `pytest`, `pnpm test:e2e` completo |
-| **2 — Infraestructura de red y tiempos** | `api.constants.ts` (endpoints, tags, métodos), `timing.constants.ts`, `ui.constants.ts`, constantes duplicadas del backend. | F-05, F-06, F-10, F-11, B-04, B-07 | Bajo | `typecheck`, `pytest`, E2E de humo |
-| **3 — Validación alineada** | `validation.constants.ts`, `FIELD_LIMITS` backend, mensajes Zod interpolados, `messages.py`. | F-09, B-05, B-06 | Bajo | Pruebas de esquemas y serializers |
-| **4 — Textos de UI** | `copy/*.constants.ts` módulo por módulo (common → auth → reporter → incidents/staff → risks → admin), *toasts*, `<PageMeta>`, `aria-*`, migración de `lib/labels.ts`. | F-07, F-08 | Bajo (sin cambios de lógica), volumen alto | E2E completo y capturas de manuales sin cambios visuales |
-| **5 — E2E y guardián** | *Page Objects* consumiendo `copy/*` y `domain.constants.ts`. Regla de lint que impida regresiones. | F-12 | Bajo | `pnpm lint` falla ante un literal de estado nuevo |
+| **1 — Contrato de dominio** (aplicada en CHG-0024) | `domain.constants.ts`, `rbac.constants.ts`, `audit.constants.ts`. Derivar tipos y reemplazar comparaciones en los 39 archivos. Backend: `rbac.py`, `audit/constants.py`, `constants.py` por app y eliminación de redeclaraciones. | F-01, F-02, F-03, F-04, B-01, B-02, B-03 | Medio (toca invariantes INV-02/04/05) | `pnpm typecheck`, `pnpm lint`, `pytest`, `pnpm test:e2e` completo |
+| **2 — Infraestructura de red y tiempos** (aplicada en CHG-0025) | `api.constants.ts` (endpoints, tags, métodos), `timing.constants.ts`, `ui.constants.ts`, constantes duplicadas del backend. | F-05, F-06, F-10, F-11, B-04, B-07 | Bajo | `typecheck`, `pytest`, E2E de humo |
+| **3 — Validación alineada** (aplicada en CHG-0026) | `validation.constants.ts`, `FIELD_LIMITS` backend, mensajes Zod interpolados, `messages.py`. | F-09, B-05, B-06 | Bajo | Pruebas de esquemas y serializers |
+| **4 — Textos de UI** (aplicada en CHG-0027 a CHG-0031; revertida en CHG-0033, ver R-03) | `copy/*.constants.ts` módulo por módulo (common → auth → reporter → incidents/staff → risks → admin), *toasts*, `<PageMeta>`, `aria-*`, migración de `lib/labels.ts`. | F-07, F-08 | Bajo (sin cambios de lógica), volumen alto | E2E completo y capturas de manuales sin cambios visuales |
+| **5 — E2E y guardián** (lote 5a parcial en CHG-0032: solo permisos; resto no ejecutado) | *Page Objects* consumiendo `copy/*` y `domain.constants.ts`. Regla de lint que impida regresiones. | F-12 | Bajo | `pnpm lint` falla ante un literal de estado nuevo |
 
 ### Guardián propuesto (fase 5)
 
@@ -360,3 +365,13 @@ Cada fase es una iteración independiente bajo `iterative-change-tracker` (anál
 | Fuentes de la regla SoD (ADMIN sin permisos de riesgo) | 3 | 2 (1 back + 1 front, verificadas por prueba de contrato) |
 | Archivos con textos de UI hardcodeados | ~85 | 0 en `components/**` y `pages/**` |
 | Mensajes Zod con el límite numérico repetido en el texto | ~20 | 0 |
+
+---
+
+## 8. Hallazgos surgidos durante la remediación
+
+| ID | Fase | Descripción | Estado |
+| :--- | :--- | :--- | :--- |
+| R-01 | 1 (CHG-0024) | La bitácora de Auditoría mostraba en bruto 6 acciones que el backend registra sin etiqueta en el frontend (`ACTUALIZAR_USUARIO`, `ACTIVAR_USUARIO`, `DESACTIVAR_USUARIO`, `CAMBIAR_ROL_USUARIO`, `ACTUALIZAR_ACTIVO`, `ACTIVAR_ACTIVO`). | Corregido en CHG-0024. |
+| R-02 | 3 (CHG-0026) | Hay mínimos que solo valida el frontend: activo (código ≥ 2, nombre ≥ 3), rol (nombre ≥ 3), matriz (nombre ≥ 3) e incidencia (activo en texto libre ≥ 2). Una llamada directa a la API los acepta. | **Pendiente de decisión.** Alinearlos en los serializers es un cambio de regla (Escenario B). |
+| R-03 | 5 (CHG-0032, CHG-0033) | El usuario decidió que el texto visible de la interfaz (contenido JSX, `aria-*`, `title`, `placeholder`, `label`, *toasts*, `<PageMeta>`) permanezca escrito en el componente, la página o el hook que lo muestra, porque así se identifica de un vistazo de qué trata cada vista. Las constantes se reservan para valores (estados, permisos, roles, rutas, límites, etiquetas de enumeraciones en `labels.constants.ts` y mensajes de validación en `validation.constants.ts`). | **Aplicado.** Fase 4 revertida en CHG-0033 (962 referencias en 95 archivos devueltas a literales; `src/constants/copy/` eliminado). Fase 5 limitada al lote 5a (CHG-0032). |
