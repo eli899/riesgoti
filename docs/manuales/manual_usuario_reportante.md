@@ -102,6 +102,7 @@ Muestra el título, la referencia, la fecha de registro y el estado actual de tu
 | Elemento | Qué hace |
 | --- | --- |
 | Enlace **← Mis incidencias** | Vuelve al listado. |
+| Botón **Editar** (junto al estado) | Abre **Editar INC-XXXX** para corregir el título, el activo afectado o la descripción. Solo aparece mientras tu incidencia no está **Cerrada**. Las evidencias no se modifican y el análisis automático ya realizado no se repite. **Guardar cambios** se habilita cuando cambias algún dato. |
 | Tarjeta **Preparando una orientación para tu caso** | Indica el avance: reporte registrado, consulta de manuales y preparación de la orientación. Puedes salir de la página; el resultado quedará guardado. |
 | Tarjeta **Sugerencia de solución** | Muestra un resumen y los pasos numerados que puedes seguir. Fue generada por IA a partir de manuales autorizados de la empresa. |
 | Marcas de cita **\[1\]**, **\[2\]** en el texto | Abren el panel de la fuente (ver 3.5) con el fragmento del manual que respalda ese paso. |

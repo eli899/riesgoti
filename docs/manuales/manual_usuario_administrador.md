@@ -68,6 +68,8 @@ Historial de todas las incidencias, las más recientes primero.
 | Columna **Sugerencia IA previa** | Indica qué pasó con la orientación de la IA (solucionó, no solucionó, sin respaldo documental, escalada por seguridad, fallo del servicio, en curso). |
 | Botón **Ver** | Abre el detalle: reporte original, evidencias (con botón **Descargar**), historial de estados, orientación previa y estado del análisis de riesgo. |
 
+En el detalle, el botón **Eliminar** (junto al estado) borra de forma permanente la incidencia con su historial, atención, evidencias y análisis de IA, tras confirmar en la ventana **Eliminar INC-XXXX**. El sistema la rechaza y explica el motivo si un análisis de IA sigue en curso o si la incidencia sustenta una versión de riesgo ya evaluada o decidida. La auditoría conserva el registro de la eliminación.
+
 En el detalle no aparece el formulario de atención, porque tu rol no puede atender casos. La columna Sugerencia IA previa te ayuda a detectar problemas: muchos casos «Sin respaldo documental» indican que faltan manuales; muchos «Falló el servicio de IA» indican un problema con el proveedor de IA.
 
 ### 3.3 Registro de riesgos (consulta)
@@ -85,6 +87,8 @@ Indicadores de riesgos y una tabla con una fila por riesgo y su versión validad
 
 Ves las mismas pestañas que el Analista (**Nuevas agrupaciones**, **Pendientes de revisión**, **Rechazadas**) con un aviso de **Modo lectura**. Al abrir una propuesta puedes leer su contenido, sus incidencias, su evaluación y sus fuentes. Los botones de retirar incidencias, confirmar la agrupación, evaluar, validar, corregir y rechazar no aparecen o están desactivados.
 
+En una propuesta **Pendiente** aún sin evaluar aparece **Eliminar propuesta**: borra la versión, sus citas y sus vínculos con incidencias (las incidencias se conservan) y, si era la única versión, también el riesgo. Una versión evaluada o decidida forma parte del registro de riesgos y no se puede eliminar.
+
 ### 3.5 Activos
 
 Catálogo de activos de información que los Reportantes eligen al registrar una incidencia y que los Analistas confirman en los riesgos.
@@ -95,7 +99,8 @@ Catálogo de activos de información que los Reportantes eligen al registrar una
 | --- | --- |
 | Botón **Nuevo activo** | Abre el formulario para registrar un activo. |
 | Botón del lápiz (**Editar**) | Abre el formulario con los datos del activo. |
-| Interruptor de estado | Activa o desactiva el activo. Un activo inactivo deja de ofrecerse en nuevos reportes, pero sigue visible en los registros históricos. No se puede eliminar. |
+| Interruptor de estado | Activa o desactiva el activo. Un activo inactivo deja de ofrecerse en nuevos reportes, pero sigue visible en los registros históricos. |
+| Botón de la papelera (**Eliminar**) | Borra el activo de forma permanente tras confirmar. Si alguna incidencia o versión de riesgo lo referencia, la ventana explica que no puede eliminarse: en ese caso desactívalo. |
 
 Campos del formulario **Nuevo activo / Editar activo**:
 
@@ -174,6 +179,8 @@ Ventana de previsualización:
 | Botón **Autorizar y activar versión** | Aprueba la versión y la pone disponible para la IA. Solo aparece en versiones pendientes. |
 | Botón **Cerrar** | Cierra la ventana sin autorizar. |
 
+El botón **Eliminar** aparece en las versiones que no están activas ni en procesamiento (con error, pendientes de autorización o autorizadas e inactivas). Borra la versión, sus fragmentos, sus vectores de búsqueda y el PDF; si era la única versión, también el documento. Una versión con fragmentos citados en orientaciones o riesgos no se puede eliminar, para preservar las citas históricas.
+
 Revisa que tablas, títulos y páginas se vean correctos antes de autorizar. Las instrucciones escritas dentro de un documento nunca se tratan como órdenes para la IA.
 
 ### 3.8 Configuración IA/RAG
@@ -208,7 +215,7 @@ Un umbral más alto da respuestas más precisas pero deriva más casos a los Ana
 
 ### 3.9 Usuarios
 
-Cada usuario tiene un solo rol. Los usuarios se desactivan, nunca se eliminan.
+Cada usuario tiene un solo rol. Un usuario con actividad registrada se desactiva; solo se eliminan los que no tienen registros a su nombre.
 
 ![Lista de usuarios con su rol, estado, botón Editar e interruptor de activación](capturas/adm-usuarios.png)
 
@@ -218,6 +225,7 @@ Cada usuario tiene un solo rol. Los usuarios se desactivan, nunca se eliminan.
 | Fila de usuario | Muestra nombre, correo, rol y estado. Tu usuario aparece marcado con «(tú)». |
 | Botón del lápiz (**Editar**) | Abre el formulario con los datos del usuario. |
 | Interruptor de estado | Activa o desactiva el usuario. Un usuario inactivo no puede iniciar sesión. |
+| Botón de la papelera (**Eliminar**) | Borra la cuenta de forma permanente tras confirmar. No aparece en tu propia cuenta. Se rechaza si es el último Administrador activo o si el usuario registró incidencias, atenciones, evaluaciones, decisiones o documentos. |
 
 No se puede desactivar al último Administrador activo ni quitarte tu propio acceso de administración; en esos casos el interruptor aparece bloqueado y explica el motivo.
 
@@ -245,6 +253,7 @@ A la izquierda están los roles (del sistema o personalizados) con su cantidad d
 | --- | --- |
 | Botón **Nuevo rol** | Abre el formulario para crear un rol personalizado, que nace sin permisos. |
 | Rol de la lista | Lo abre en el editor. |
+| Botón **Eliminar rol** (en el editor) | Solo en roles personalizados. Borra el rol y sus permisos tras confirmar; se rechaza si tiene usuarios asignados. |
 | Encabezado de módulo (Incidencias, Atención de incidencias, Riesgos, Administración) | Despliega o pliega sus permisos y muestra cuántos están activos. |
 | Interruptor de cada permiso | Lo agrega o lo quita del borrador. |
 | Candado con motivo | El permiso no se puede cambiar por segregación de funciones o porque el rol ADMIN debe conservarlo. |
