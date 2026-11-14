@@ -56,6 +56,17 @@ Muestra los indicadores de la plataforma y la fecha en que se generaron los dato
 | Gráficos | Incidencias por fecha (últimos 30 días), incidencias por estado, riesgos vigentes por nivel y los 5 activos con más incidencias. |
 | Tarjeta **Estado del sistema** | Configuración de IA vigente, umbral de similitud y top-k, documentos disponibles para la IA y documentos en procesamiento. |
 | Enlace **Revisar documentos** | Aparece si hay documentos por autorizar, con error o por reindexar. Abre la pantalla Documentos. |
+| Tarjeta **Puesta en marcha** | Aparece mientras falte configurar algo. Lista los pasos y marca los completados; cada paso pendiente tiene un enlace a su pantalla. Desaparece cuando todo está listo. |
+
+#### Puesta en marcha de una instalación nueva
+
+La semilla de una instalación nueva solo crea los roles, los permisos, los usuarios y los 4 niveles de riesgo. Todo lo demás lo configuras tú, en este orden:
+
+1. **Tipos de activo** (Activos → pestaña **Tipos de activo**): por ejemplo, Aplicación, Servidor o Infraestructura de red.
+2. **Activos** (Activos → pestaña **Activos**): los Reportantes los eligen al registrar incidencias.
+3. **Matriz de riesgo inicial** (Matriz): sin ella los Analistas no pueden evaluar riesgos.
+4. **Configuración IA/RAG inicial** (Configuración IA/RAG): sin ella las incidencias pasan directamente a atención humana y no se pueden procesar documentos.
+5. **Documentos normativos** (Documentos): cárgalos y autorízalos para que la IA pueda orientar con ellos.
 
 ### 3.2 Incidencias (consulta)
 
@@ -91,13 +102,13 @@ En una propuesta **Pendiente** aún sin evaluar aparece **Eliminar propuesta**: 
 
 ### 3.5 Activos
 
-Catálogo de activos de información que los Reportantes eligen al registrar una incidencia y que los Analistas confirman en los riesgos.
+Catálogo de activos de información que los Reportantes eligen al registrar una incidencia y que los Analistas confirman en los riesgos. La pantalla tiene dos pestañas: **Activos** y **Tipos de activo**; cada una muestra su total.
 
 ![Catálogo de activos con tipo, criticidad, estado y los botones Editar y de activación](capturas/adm-activos.png)
 
 | Elemento | Qué hace |
 | --- | --- |
-| Botón **Nuevo activo** | Abre el formulario para registrar un activo. |
+| Botón **Nuevo activo** | Abre el formulario para registrar un activo. Está desactivado mientras no exista ningún tipo de activo activo; en ese caso un aviso te lleva a la pestaña Tipos de activo. |
 | Botón del lápiz (**Editar**) | Abre el formulario con los datos del activo. |
 | Interruptor de estado | Activa o desactiva el activo. Un activo inactivo deja de ofrecerse en nuevos reportes, pero sigue visible en los registros históricos. |
 | Botón de la papelera (**Eliminar**) | Borra el activo de forma permanente tras confirmar. Si alguna incidencia o versión de riesgo lo referencia, la ventana explica que no puede eliminarse: en ese caso desactívalo. |
@@ -114,6 +125,18 @@ Campos del formulario **Nuevo activo / Editar activo**:
 
 **Cancelar** cierra sin guardar y **Guardar** registra los cambios.
 
+#### Pestaña Tipos de activo
+
+| Elemento | Qué hace |
+| --- | --- |
+| Botón **Nuevo tipo** | Abre el formulario con el campo **Nombre** (de 2 a 100 caracteres; no puede repetirse, sin distinguir mayúsculas). |
+| Columna **Activos asignados** | Cuántos activos usan el tipo. |
+| Botón del lápiz (**Editar**) | Cambia el nombre del tipo; los activos que lo usan muestran el nombre nuevo. |
+| Interruptor de estado | Un tipo inactivo deja de ofrecerse al crear o editar activos; los activos que ya lo usan no cambian. |
+| Botón de la papelera (**Eliminar**) | Borra el tipo tras confirmar. Está desactivado si algún activo lo usa: en ese caso desactívalo. |
+
+Todas estas acciones quedan registradas en la auditoría.
+
 ### 3.6 Matriz de evaluación
 
 Define qué nivel de riesgo (Bajo, Medio, Alto o Crítico) corresponde a cada combinación de probabilidad e impacto. El encabezado indica la configuración vigente, quién la publicó y cuándo.
@@ -124,6 +147,7 @@ Define qué nivel de riesgo (Bajo, Medio, Alto o Crítico) corresponde a cada co
 | --- | --- |
 | Pestaña **Matriz 5×5** | Muestra y permite editar los niveles por celda. |
 | Pestañas **Probabilidad** e **Impacto** | Muestran el nombre y la descripción de cada criterio del 1 al 5 (solo lectura). |
+| Pestaña **Niveles de riesgo** | Muestra los 4 niveles (Bajo, Medio, Alto y Crítico) en orden. Son fijos y no se pueden modificar, porque el tablero y los indicadores dependen de ellos. |
 | Celda de la matriz | Cada clic cambia el nivel de esa celda al siguiente. Con el teclado, muévete con las flechas, Inicio y Fin, y pulsa Enter. Las celdas modificadas quedan con borde punteado. |
 | Contador **n celdas modificadas** | Indica cuántos cambios hay sin publicar. |
 | Botón **Descartar cambios** | Vuelve a la matriz vigente sin guardar. |
@@ -132,6 +156,19 @@ Define qué nivel de riesgo (Bajo, Medio, Alto o Crítico) corresponde a cada co
 | Botón **Publicar versión** / **Cancelar** | Publica la nueva matriz o cierra la ventana sin publicar. |
 
 Publicar una matriz no cambia las evaluaciones ya registradas: conservan la celda y la matriz con las que se hicieron. Las evaluaciones nuevas usan la matriz publicada.
+
+#### Matriz inicial
+
+Si todavía no hay ninguna matriz publicada, la pantalla muestra el formulario **Configuración inicial de la matriz de riesgo**:
+
+| Elemento | Qué hace |
+| --- | --- |
+| Campo **Nombre de la matriz** | Obligatorio, de 3 a 100 caracteres. Viene sugerido como «Matriz corporativa ISO 27005». |
+| **Criterios de probabilidad** e **Impacto** (1 a 5) | Nombre de cada valor, de 2 a 100 caracteres. Vienen sugeridos (Rara … Casi segura; Insignificante … Severo) y puedes cambiarlos. |
+| Grilla **Nivel de riesgo por celda** | Cada celda trae un nivel sugerido según probabilidad × impacto (Bajo de 1 a 3, Medio de 4 a 8, Alto de 9 a 14 y Crítico desde 15). Haz clic o pulsa Enter para cambiarlo. |
+| Botón **Publicar matriz inicial** | Publica la matriz como versión v1.0. Desde ese momento la pantalla funciona como se describe arriba. |
+
+Un usuario sin permiso para administrar la matriz ve el aviso **Matriz sin configurar**.
 
 ### 3.7 Documentos
 
@@ -144,7 +181,9 @@ Administra los PDFs normativos (políticas, procedimientos, manuales) en los que
 | Botón **Cargar PDF** | Abre el formulario para subir un documento nuevo. |
 | Buscador | Filtra por código, título o versión. |
 | Aviso **Actualizando el estado cada 3 segundos** | Aparece mientras hay PDFs en procesamiento; la pantalla se refresca sola. |
-| Botón **Reintentar** | Aparece si el procesamiento falló. Vuelve a procesar el PDF; el error se muestra en la tarjeta. |
+| Botón **Cargar nuevamente** | Aparece si el procesamiento falló. Abre un formulario con el error anterior para subir un PDF corregido que reemplaza al original; se conservan el código, el título, la finalidad y el número de versión, y el documento se procesa otra vez. Úsalo cuando el PDF no tiene texto seleccionable (por ejemplo, uno generado con «Microsoft Print to PDF» o escaneado). |
+| Botón **Reintentar** | Aparece si el procesamiento falló. Vuelve a procesar el mismo PDF; sirve para fallas pasajeras (por ejemplo, el proveedor de IA no respondió), no para un PDF sin texto. |
+| Botón **Eliminar** | En versiones con error se muestra en rojo; en versiones autorizadas solo aparece si están inactivas. Borra la versión tras confirmar. Se rechaza si sus fragmentos ya fueron citados. |
 | Botón **Previsualizar y autorizar** | Aparece en versiones **Pendiente de autorización**. Abre la vista de fragmentos. |
 | Botón **Desactivar** | Saca de las consultas de la IA una versión disponible. Las citas históricas se conservan. |
 | Botón **Activar** | Vuelve a incluir en las consultas una versión autorizada inactiva. |
@@ -186,6 +225,16 @@ Revisa que tablas, títulos y páginas se vean correctos antes de autorizar. Las
 ### 3.8 Configuración IA/RAG
 
 Define qué modelos usa la IA y cómo busca en los documentos. Cada cambio publica una versión nueva y queda en la auditoría; el encabezado muestra la versión vigente.
+
+El formulario se organiza en tres tarjetas:
+
+- **Modelo de lenguaje (LLM):** «Proveedor y modelo», y «Conexión y credenciales».
+- **Embeddings:** «Proveedor y modelo», con un aviso de que cambiar el modelo obliga a reindexar, y «Credenciales».
+- **Parámetros de recuperación RAG:** «Fragmentación de documentos» y «Recuperación».
+
+Debajo de cada API key, una etiqueta con candado indica si hay una clave cifrada vigente (con su máscara) o si no hay ninguna configurada. Los botones **Probar conexión** y **Publicar** quedan fijos al pie mientras te desplazas, junto al aviso **Cambios sin publicar** cuando modificas algo. En pantallas anchas, el **Diagnóstico de conectividad** aparece en un panel a la derecha del formulario.
+
+Si todavía no hay ninguna configuración publicada, un aviso lo indica y el formulario aparece con valores sugeridos: Google Gemini (gemini-2.5-flash), embeddings locales Sentence-Transformers (paraphrase-multilingual-mpnet-base-v2, que no necesitan API key), fragmentos de 800 con solapamiento de 120, top-k 4 y umbral 0,40. Agrega la API key del LLM, pulsa **Probar conexión** si quieres validarla y luego **Publicar configuración inicial**. Después puedes editarla cuando quieras: cada cambio publica una versión nueva.
 
 ![Formulario de Configuración IA/RAG con el modelo de lenguaje, los embeddings y los parámetros de recuperación](capturas/adm-config-ia.png)
 
@@ -291,7 +340,8 @@ stateDiagram-v2
     state "Autorizado · inactivo" as Inactivo
     [*] --> Procesando: Cargar PDF
     Procesando --> Error: Falla el procesamiento
-    Error --> Procesando: Reintentar
+    Error --> Procesando: Reintentar o Cargar nuevamente
+    Error --> [*]: Eliminar
     Procesando --> Pendiente: Fragmentos generados
     Pendiente --> Disponible: Autorizar y activar versión
     Disponible --> Inactivo: Desactivar
@@ -310,7 +360,7 @@ Mensajes frecuentes:
 | «El código del documento es obligatorio (ej. POL-SGSI-01)» | Documentos | Completa el código. |
 | «El título debe tener al menos 5 caracteres» | Documentos | Amplía el título. |
 | «La versión es obligatoria (ej. v1.0)» | Documentos | Indica la versión. |
-| Tarjeta **Error de procesamiento** con detalle | Documentos | Revisa que el PDF no esté dañado ni protegido y pulsa **Reintentar**; si persiste, carga un PDF corregido. |
+| Tarjeta **Error de procesamiento** con detalle | Documentos | Si el mensaje indica que no hay capa de texto, el PDF no tiene texto seleccionable: genéralo de nuevo con «Guardar como PDF» del navegador o expórtalo desde Word o Google Docs y usa **Cargar nuevamente**. Para otros fallos pulsa **Reintentar**; si no quieres conservar la versión, usa **Eliminar**. |
 | «Ingresa un nombre de al menos 3 caracteres» | Matriz de evaluación | Escribe un nombre para la nueva configuración. |
 | Interruptor bloqueado con motivo | Usuarios | Es el último Administrador activo o tu propio acceso. Crea u otorga otro Administrador primero. |
 | Candado «Bloqueado por Segregación de Funciones (ISO 27001)» | Roles y permisos | El permiso no puede combinarse con los que ya tiene el rol. |

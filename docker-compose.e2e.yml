@@ -47,7 +47,7 @@ services:
     build:
       context: ./back
       dockerfile: Dockerfile
-    command: sh -c "python manage.py migrate --noinput && python manage.py seed_riesgoti && python manage.py runserver 0.0.0.0:8000"
+    command: sh -c "python manage.py migrate --noinput && python manage.py seed_riesgoti --demo && python manage.py runserver 0.0.0.0:8000"
     working_dir: /app
     env_file:
       - ./back/.env

@@ -78,7 +78,6 @@ cp front/.env.example front/.env
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | `http://localhost:8000/api/v1` | URL de la API. |
 | `VITE_APP_NAME` | `RiesgoTI — …` | Nombre que muestra la aplicación. |
-| `VITE_DEMO_PASSWORD` | (comentada) | Opcional, solo desarrollo. Si la defines con la contraseña de los usuarios semilla, el login muestra botones para entrar con un clic con cada perfil. No la subas al repositorio. |
 
 ---
 
@@ -102,7 +101,9 @@ docker compose exec backend python manage.py seed_riesgoti
 
 La primera construcción tarda varios minutos porque instala PyTorch (CPU), PyMuPDF y FAISS. El primer análisis de documentos también descarga el modelo de embeddings `paraphrase-multilingual-mpnet-base-v2`; queda guardado en el volumen `huggingface_cache` y no se vuelve a descargar.
 
-`seed_riesgoti` se puede ejecutar varias veces sin duplicar datos. Carga roles, permisos, 6 usuarios de prueba, activos, la matriz 5×5, la configuración IA/RAG inicial, documentos de ejemplo, incidencias y riesgos de demostración.
+`seed_riesgoti` se puede ejecutar varias veces sin duplicar datos y nunca borra nada. Solo carga roles, permisos, 6 usuarios de prueba y los 4 niveles de riesgo. Los tipos de activo, los activos, la matriz 5×5 inicial, la configuración IA/RAG inicial y los documentos se configuran desde el portal de Administración (la tarjeta **Puesta en marcha** del panel guía los pasos; ver `docs/manuales/manual_usuario_administrador.md`).
+
+Para una instalación de demostración con datos de ejemplo (activos, matriz, configuración IA/RAG, documentos, incidencias y riesgos) usa `seed_riesgoti --demo`. Es lo que usan la suite `pytest` y el stack E2E.
 
 Verifica que la API responda:
 
