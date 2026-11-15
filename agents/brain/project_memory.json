@@ -3749,6 +3749,72 @@
           "changelogs/entries/CHG-0041_2026-11-14_rediseno_visual_configuracion_ia_rag.md",
           "agents/brain/project_memory.json"
         ]
+      },
+      {
+        "id": "CHG-0042",
+        "timestamp": "2026-11-15T12:00:00-05:00",
+        "type": "Frontend",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-07-FRONT-CORE-RTK-ZOD-AUTH"
+        ],
+        "file": "changelogs/entries/CHG-0042_2026-11-15_rediseno_visual_inicio_de_sesion.md",
+        "summary": "Rediseño visual de LoginPage: main en rejilla lg:grid-cols-2 con nuevo componente presentacional LoginBrandPanel (aside aria-label Acerca de RiesgoTI, solo lg+, bg-deep con halos decorativos aria-hidden, logotipo en negativo, titular de valor como <p> para no anteponer encabezados al h1 y tres pilares: orientación inmediata, atención con trazabilidad, gobierno de riesgos ISO/IEC 27005) y section del formulario sobre bg-canvas; en móvil tarjeta centrada con Logo. Antetitulación Acceso a la plataforma, h1 text-3xl, aviso JWT en recuadro bg-soft. LoginForm: iconos Mail/LockKeyhole dentro de los campos (pl-10, h-12), separación flex gap-5 (el m-0 de Field anulaba space-y), botón Ingresar min-h-12 text-md shadow-card. Labels, ids y textos sin cambios (localizadores E2E intactos). Sin cambios en authApi, auth.mapper, loginFormSchema, useAuthSession ni backend. tsc, ESLint, check-design-tokens y build OK; capturas revisadas con vite preview; E2E no ejecutado. Pendiente regenerar docs/manuales/capturas/login.png.",
+        "endpoints": [],
+        "files": [
+          "front/src/components/auth/LoginBrandPanel.tsx",
+          "front/src/pages/LoginPage.tsx",
+          "front/src/components/auth/LoginForm.tsx",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0042_2026-11-15_rediseno_visual_inicio_de_sesion.md",
+          "agents/brain/project_memory.json"
+        ]
+      },
+      {
+        "id": "CHG-0043",
+        "timestamp": "2026-11-15T13:00:00-05:00",
+        "type": "Frontend",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-11-FRONT-DESIGN-SYSTEM-TOKENS",
+          "MOD-07-FRONT-CORE-RTK-ZOD-AUTH",
+          "MOD-08-FRONT-ADMIN-PORTAL",
+          "MOD-10-FRONT-ANALYST-N2-AND-RISK-GOVERNANCE"
+        ],
+        "file": "changelogs/entries/CHG-0043_2026-11-15_paleta_de_colores_con_acentos_y_barra_lateral_oscura.md",
+        "summary": "Paleta con acentos semánticos. index.css: tokens danger-soft/strong, success, warning, alert, ai y accent (con -soft/-strong). AppShell: aside bg-deep, NavList con prop tone (dark en escritorio / light en Sheet móvil, mapa NAV_TONE), indicador activo bg-accent, foco outline-white, línea de degradado from-primary via-accent to-ai bajo la cabecera. ui.tsx: riskLevelStyle semafórico (BAJO success, MEDIO warning, ALTO alert, CRITICO danger), validationStyle (PENDIENTE warning, VALIDADA success, CORREGIDA azul, RECHAZADA danger-soft), incidentStatusStyle (PENDIENTE_ATENCION_HUMANA warning, EN_ATENCION accent, CERRADA success), AIBadge violeta, Avatar con degradado. InteractiveRiskMatrix5x5Grid con celdas semafóricas (Matrix5x5EditorGrid hereda vía RiskLevelBadge). KpiSection con franja KPI_STRIPES y destacados en ámbar; charts con barras degradadas. DocumentVersionsTable y PriorAISuggestionBadge alineados a la semántica. Sin cambios de contrato. tsc, ESLint, check-design-tokens y build OK; capturas como Analista revisadas; E2E no ejecutado. Pendiente regenerar capturas del manual.",
+        "endpoints": [],
+        "files": [
+          "front/src/index.css",
+          "front/src/components/layout/AppShell.tsx",
+          "front/src/components/ui.tsx",
+          "front/src/components/risk/InteractiveRiskMatrix5x5Grid.tsx",
+          "front/src/components/dashboard/KpiSection.tsx",
+          "front/src/components/dashboard/charts.tsx",
+          "front/src/components/admin/DocumentVersionsTable.tsx",
+          "front/src/components/staff/PriorAISuggestionBadge.tsx",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0043_2026-11-15_paleta_de_colores_con_acentos_y_barra_lateral_oscura.md",
+          "agents/brain/project_memory.json"
+        ]
+      },
+      {
+        "id": "CHG-0044",
+        "timestamp": "2026-11-15T14:00:00-05:00",
+        "type": "Frontend",
+        "contract_scenario": "A",
+        "modules": [
+          "MOD-11-FRONT-DESIGN-SYSTEM-TOKENS"
+        ],
+        "file": "changelogs/entries/CHG-0044_2026-11-15_continuidad_barra_lateral_y_separador_sutil_de_cabecera.md",
+        "summary": "AppShell: desde md la zona de marca de la cabecera ocupa w-64 con bg-deep (continúa la barra lateral oscura de CHG-0043) y Logo recibe invertFromMd (nombre en blanco y subtítulo oculto desde md). El degradado de 2 px bajo la cabecera se reemplaza por un separador neutro de 1 px bg-line que, desde md, empieza en left-64. Móvil sin cambios. tsc y ESLint OK; verificado con capturas Playwright en 1440x900 y 390x760.",
+        "files": [
+          "front/src/components/layout/AppShell.tsx",
+          "front/src/components/ui.tsx",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0044_2026-11-15_continuidad_barra_lateral_y_separador_sutil_de_cabecera.md",
+          "agents/brain/project_memory.json"
+        ]
       }
     ],
     "brain_access_policy": "El Brain es exclusivamente este archivo JSON, leído y editado directamente. No usar el servidor MCP memory (@modelcontextprotocol/server-memory): persiste en JSONL y corrompería este archivo (CHG-0004). Validar JSON tras cada edición."
