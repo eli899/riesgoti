@@ -1,7 +1,7 @@
 {
   "project": "RiesgoTI",
   "version": "1.0.0",
-  "last_updated": "2026-11-14T03:00:00-05:00",
+  "last_updated": "2026-11-21T13:30:00-05:00",
   "standards_alignment": [
     "ISO/IEC 27005:2022 (Gestión de Riesgos de Seguridad de la Información)",
     "ISO/IEC 27001:2022 (Sistema de Gestión de Seguridad de la Información - SGSI y SoD)",
@@ -3813,6 +3813,31 @@
           "front/src/components/ui.tsx",
           "changelogs/INDEX.md",
           "changelogs/entries/CHG-0044_2026-11-15_continuidad_barra_lateral_y_separador_sutil_de_cabecera.md",
+          "agents/brain/project_memory.json"
+        ]
+      },
+      {
+        "id": "CHG-0045",
+        "timestamp": "2026-11-21T13:30:00-05:00",
+        "type": "Fullstack",
+        "contract_scenario": "B",
+        "modules": [
+          "MOD-04-OPERATIONAL-RAG-CELERY",
+          "MOD-06-HUMAN-ATTENTION",
+          "MOD-07-REPORTER-PORTAL",
+          "MOD-08-ANALYST-INBOX-N2"
+        ],
+        "file": "changelogs/entries/CHG-0045_2026-11-21_orientacion_operativa_por_conocimiento_general_sin_respaldo.md",
+        "summary": "Mecanismo de orientación operativa por conocimiento general de la IA (SUGERENCIA_EXTERNA) ante ausencia de fragmentos en el RAG interno. Si no hay manuales autorizados sobre el umbral de similitud o faltan citas internas verificables, la IA genera pasos preliminares seguros de soporte TI con advertencia explícita destacada y deriva simultáneamente a la cola N2 (PENDIENTE_ATENCION_HUMANA). En frontend: tarjeta con alerta ámbar y pasos en OperationalGuidanceSection.tsx y badge 'Sugerencia general IA (sin manual)' en PriorAISuggestionBadge.tsx. bd.sql intacto; INV-01 e INV-04 preservadas.",
+        "files": [
+          "back/apps/risks/constants.py",
+          "back/apps/risks/services.py",
+          "back/apps/risks/tests/test_celery_workers.py",
+          "front/src/constants/domain.constants.ts",
+          "front/src/components/incidents/OperationalGuidanceSection.tsx",
+          "front/src/components/staff/PriorAISuggestionBadge.tsx",
+          "changelogs/INDEX.md",
+          "changelogs/entries/CHG-0045_2026-11-21_orientacion_operativa_por_conocimiento_general_sin_respaldo.md",
           "agents/brain/project_memory.json"
         ]
       }
